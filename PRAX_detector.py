@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/Users/cbacigalupo/canopy/bin/ python
 
 
 import argparse
@@ -9,20 +9,25 @@ import sys
 import traceback
 import signal
 
-class ptc:
-    def __init__(self):
+class detectorClient:
+    '''
+    The detector client class wraps all the functionality that is needed to operate the IDL interface to the detector. 
 
-        self.hostH2RG = '141.33.128.169'
-        self.portH2RG = 5000
-        self.portImage = 5001
+    It provides a python interface to send the operational commands to the detector
+    '''
+    
+    def __init__(self, host):
+        self.host = host
+        self.port = 5000
+
         self.size = 1024
-        self.serverH2RG = None
-        self.threads = None
+        self.detectorSocket = None
         self.running = 1
-        self.expTime = 1.0 # in ms
+        self.expTime = 1.0  # in ms
         self.loopcnt = 1
         self.promptSend = True
-        self.cmds = {
+        
+        self.cmdDict = {
                 "ping":"PING\r\n",
                 "telemetry":"GETTELEMETRY\r\n",
                 "getconfig":"GETCONFIG\r\n",
@@ -35,111 +40,158 @@ class ptc:
                 "setfspar":"SETFSPARAM"
                 }
                 
-    def set_timeout(self,timeout):    
-        self.serverH2RG.settimeout(timeout) # 15 min
+    def set_timeout(self, timeout):    
+        self.detectorSocket.settimeout(timeout)
  
     def open_socket(self):
         try:
-            self.serverH2RG = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            print "opening host: "+self.hostH2RG+" port: "+`self.portH2RG`
-            self.serverH2RG.connect((self.hostH2RG,self.portH2RG))
-            self.serverH2RG.settimeout(30) # .5 min
-        except socket.error, (value,message):
+            self.detectorSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            print 'opening host:', self.host, 'port:', self.port
+            self.detectorSocket.connect((self.host, self.port))
+            self.detectorSocket.settimeout(30)  # .5 min
+            
+        except socket.error, (value, message):
             exceptionType, exceptionValue, exceptionTraceback = sys.exc_info()
-            if self.serverH2RG:
-                self.serverH2RG.close()
+            self.terminateSocket()
             print "Could not open socket: " + message
-            print "*** lineno:", traceback.tb_lineno(exceptionTraceback)
-            sys.exit(1)
 
-    def terminate(self):
-        if self.serverH2RG:
+    def terminateSocket(self):
+        if self.detectorSocket:
             try:
-                self.serverH2RG.close()
-                self.serverH2RG.shutdown(socket.SHUT_RDWR)
+                self.detectorSocket.close()
+                self.detectorSocket.shutdown(socket.SHUT_RDWR)
+                print 'Socket terminated'
             except:
                 pass
 
     def KeyboardSignalHandler(self, signum, frame):
         print 'Keyboard Signal handler called', signum
         self.running = 0
-        self.serverH2RG.close()
-        self.serverH2RG.shutdown(socket.SHUT_RDWR)
-        #self.threads.stop()
+        self.detectorSocket.close()
+        self.detectorSocket.shutdown(socket.SHUT_RDWR)
         sys.exit(0)
 
+
     def SendAndReply(self, line):
+        
         try:
-            self.serverH2RG.send(line)
-            print "line sent: "+line
-            data = self.serverH2RG.recv(self.size)
-            print "received = "+`len(data)`+" >>> "+data.rstrip()+" <<<"
-            #sys.stdout.write(data)
+            self.detectorSocket.send(line)
+            print "line sent:", line.strip()
+            
+            data = self.detectorSocket.recv(self.size)
+            print "line received (", len(data), "):", data.rstrip()
+            
         except socket.timeout:
-            print "SendAndReply: Could not write/read to/from socket"
+            print "SendAndReply: Could not write/read to/from socket. Timed out."
             data = "SendAndReply: Error"
+            
         return data
 
 
-    def setFSParam(self,nreset,nread,ngroup,exptime,nramp):
-        fspar = self.SendAndReply("%s(%s,%s,%s,%s,%s)\r\n"%(self.cmds["setfspar"],nreset,nread,ngroup,exptime,nramp))
-        print fspar
 
-    def ptc_init(self):
+    def detectorInit(self):
+        
+        # Open socket
         self.open_socket()
+        
         # Set the signal handler 
         signal.signal(signal.SIGINT, self.KeyboardSignalHandler)
-
-        print "ptc_init: "
+        
+        print
+        print 'detectorInit'
+        print '------------'        
 
         try:
             # handle standard input
+            print 'Sending ping'
+            self.SendAndReply(self.cmdDict["ping"])
+            print
             
-            ping = self.SendAndReply(self.cmds["ping"])
-            print ping
-            #getcfg = self.SendAndReply(self.cmds["getcfg"])
-            #print getcfg
-            fsmode = self.SendAndReply(self.cmds["setfsmode"])
-            print fsmode
-
-        except:
-            pass
-    def run(self):
-        print "setting params"
-        self.setFSParam("2","32","1","2400","1")
-        print "acquire..."
-        self.set_timeout(2700)
-        fsacq = self.SendAndReply(self.cmds["acqramp"])
-        print fsacq
+        except Exception, e:
+            print 'Something went wrong.', str(e)
+    
+    
+    def getConfig(self):        
+        print 'Getting config'
+        self.SendAndReply(self.cmdDict["getconfig"])
+        print
+            
+        
+    def setFS(self):
+        print 'Sending fsmode'
+        self.SendAndReply(self.cmdDict["setfsmode"])
+        print ''
+        
+    def setUTRamp(self):
+        print 'Sending UTRamp'
+        self.SendAndReply(self.cmdDict["setramode"])
+        print ''
+        
+    def setExposure(self, nreset, nread, ngroup, exptime, nramp):
+        
+        print "Setting params..."
+        self.SendAndReply("%s(%s,%s,%s,%s,%s)\r\n"
+                          % (self.cmdDict["setfspar"], nreset, nread, ngroup, exptime, nramp))
+        self.set_timeout(exptime*1.5)
+               
+        self.set_timeout(30)
+        
+    def runExposure(self):
+        
+        print "Acquiring"
+        self.SendAndReply(self.cmdDict["acqramp"])        
         self.set_timeout(30)
 
-
-# number of reads is set to 2
-# Always set time out larger than the longest exposure, if not error of connection
-# Longest exposure*1.5 = timeout
 
 
 
 if __name__ == '__main__':
 
-    #arg parsing for command line version 
+    # arg parsing for command line version 
     parser = argparse.ArgumentParser(description='PRAXIS Detector. Python wrapper to trigger exposures.')
-    parser.add_argument('-v', help='Verbosity level (0-None, 5-Max).')  
-#     parser.add_argument('-o', help='Routed tile output file name (S3)', type=str, metavar='RTileFileNameS3.json')
-#     parser.add_argument('-f', help='Allocation target file (S2)', type=str, metavar='XYTileFileNameS2.json', default='s2_example.json')
-#     parser.add_argument('-fcsv', help='filename of the output csv file', default='out.csv')
-#     parser.add_argument('-fjson', help='filename of the output json file', default='out.json')
+    parser.add_argument('-host', help='Host IP. [10.80.127.5]', type=str, default='10.80.127.5', dest='host')
+    parser.add_argument('-smode', help='Sampling mode. 0/1 for up the ramp or Fowler Sampling. [1]',
+                         type=int, default=1, dest='smode')
+    parser.add_argument('-nreset', help='Number of resets. [2]', type=int, default=2, dest='nreset')
+    parser.add_argument('-nread', help='Number of reads. [1]', type=int, default=1, dest='nread')
+    parser.add_argument('-ngroup', help='Number of groups [1]', type=int, default=1, dest='ngroup')
+    parser.add_argument('-exptime', help='Exposure time in seconds [1]', type=float, default=1., dest='exptime')
+    parser.add_argument('-nramp', help='Number of ramps. [1]', type=int, default=1, dest='nramp')
+ 
     args = parser.parse_args()
-    print args
+    print 'Command line arguments:', args
+    print 
 
-    p = ptc()
-    p.ptc_init()
     
-    for ii in range(25):
-        print "Sample number " + str(ii)
-        p.run()
-        print "Acquired number " + str(ii)
+    
+    '''
+    Detector actions start here
+    '''
+    
+    
+    # initialise class and connection
+    det = detectorClient(host = args.host)
+    det.detectorInit()
+     
+    #print current config     
+    det.getConfig()
+    
+    # Set sampling mode
+    if args.smode==0:
+        det.setUTRamp()
+    else:
+        det.setFS()
+
+    # configure exposure
+    det.setExposure(nreset = args.nreset, 
+                    nread = args.nread, 
+                    ngroup = args.ngroup, 
+                    exptime = args.exptime, 
+                    nramp = args.nramp)
+
+    # expose
+    det.runExposure()
+
         
-    #p.run(10)
-    p.terminate()
-    sys.exit(0)
+    # wrap up
+    det.terminateSocket()
