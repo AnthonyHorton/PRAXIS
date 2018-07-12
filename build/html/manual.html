@@ -1,0 +1,291 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>TAIPAN Manual &#8212; PRAXIS  documentation</title>
+    <link rel="stylesheet" href="_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript" src="_static/documentation_options.js"></script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="author" title="About these documents" href="about.html" />
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="PRAXIS reference manual" href="reference.html" />
+    <link rel="prev" title="About" href="about.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="reference.html" title="PRAXIS reference manual"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="about.html" title="About"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">PRAXIS  documentation</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="taipan-manual">
+<h1>TAIPAN Manual<a class="headerlink" href="#taipan-manual" title="Permalink to this headline">¶</a></h1>
+<p>The TAIPAN module contains the classes that organise the different tasks that
+control TAIPAN.</p>
+<p>#.. image:: images/TAIPAN_classes.png
+#    :width: 1000px</p>
+<p>To gain access, the module needs to be imported. Instantiating a class provides
+access to its child methods and properties that belong to the class.</p>
+<p>All methods return control to the calling script instantly. This is achieved by
+embedding a lower level module (py2drama.py) that triggers an individual DRAMA
+thread for each call. The DRAMA environment is accessed from py2drama via a C++
+wrapper (dpython.py).</p>
+<p>This multi-layered structure remains hidden to the Jeeves script and is made
+available through the TAIPAN module. It is important to keep in mind the
+multi-threading architecture running on the background in order to create the
+necesary loops in the Jeeves script to avoid the code from finishing
+prematurely. One way to achieve this is to create a loop of the form:</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Example:</th><td class="field-body"><div class="first last highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">attempts</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">While</span> <span class="kc">True</span><span class="p">:</span>
+<span class="gp">&gt;&gt;&gt; </span>     <span class="k">if</span> <span class="n">some_action</span><span class="p">():</span>
+<span class="gp">&gt;&gt;&gt; </span>        <span class="k">break</span>
+<span class="gp">&gt;&gt;&gt; </span>     <span class="k">else</span>
+<span class="gp">&gt;&gt;&gt; </span>        <span class="c1">#try to fix it</span>
+<span class="go">&gt;&gt;&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span>     <span class="n">attempts</span> <span class="o">+=</span> <span class="mi">1</span>
+<span class="go">&gt;&gt;&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span>     <span class="k">if</span> <span class="n">attempts</span><span class="o">&gt;</span><span class="mi">100</span><span class="p">:</span>
+<span class="gp">&gt;&gt;&gt; </span>        <span class="c1">#do somthing else</span>
+</pre></div>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+<div class="section" id="quick-examples">
+<h2>Quick Examples<a class="headerlink" href="#quick-examples" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="to-allow-access-to-the-positioner-through-the-object-pos">
+<h3>To allow access to the positioner through the object pos<a class="headerlink" href="#to-allow-access-to-the-positioner-through-the-object-pos" title="Permalink to this headline">¶</a></h3>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">TAIPAN</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">pos</span> <span class="o">=</span> <span class="n">TAIPAN</span><span class="o">.</span><span class="n">Positioner</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="to-configure-the-positioner">
+<h3>To configure the positioner<a class="headerlink" href="#to-configure-the-positioner" title="Permalink to this headline">¶</a></h3>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">presetValues</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;tileFilename&#39;</span><span class="p">:</span><span class="s1">&#39;some_file.txt&#39;</span><span class="p">}</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">pos</span><span class="o">.</span><span class="n">preset</span><span class="p">(</span><span class="n">presetValues</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">pos</span><span class="o">.</span><span class="n">configure</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="to-perform-more-than-1-action-at-the-same-time">
+<h3>To perform more than 1 action at the same time<a class="headerlink" href="#to-perform-more-than-1-action-at-the-same-time" title="Permalink to this headline">¶</a></h3>
+<p>Assume an observation has just been finished and Jeeves is ready to readout,
+slew and reconfigure simultaneously. The objects pos, tcs and drt have already
+been linked to the positioner, telescope control system and data recorder
+respectively.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Example:</th><td class="field-body"><div class="first highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="c1">#These lines leave the positioner ready to configure</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">presetValues</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;tileFilename&#39;</span><span class="p">:</span><span class="s1">&#39;some_file.txt&#39;</span><span class="p">}</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">pos</span><span class="o">.</span><span class="n">preset</span><span class="p">(</span><span class="n">presetValues</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="c1">#These lines leave the telescope and dome ready to move</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">presetValues</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;ra&#39;</span><span class="p">:</span> <span class="mf">12.1234</span><span class="p">,</span>
+<span class="gp">&gt;&gt;&gt; </span>                <span class="s1">&#39;dec&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mf">45.1234</span><span class="p">,</span>
+<span class="gp">&gt;&gt;&gt; </span>                <span class="s1">&#39;dome&#39;</span><span class="p">:</span><span class="s1">&#39;follow&#39;</span> <span class="p">}</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">tcs</span><span class="o">.</span><span class="n">preset</span><span class="p">(</span><span class="n">presetValues</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="c1">#No need to change any presets in the data recorder (in this example)</span>
+</pre></div>
+</div>
+<div class="last highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="c1">#First we trigger the actions.</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1">#Each of these steps should be embedded in a while loop until successful or an alternative is decided.</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">drt</span><span class="o">.</span><span class="n">readout</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">pos</span><span class="o">.</span><span class="n">configure</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">tcs</span><span class="o">.</span><span class="n">slew</span><span class="p">()</span>
+</pre></div>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+<p>At this point of the code, all actions have been successfully sent but they
+might not be completed.</p>
+<p>We run a new loop to check for completion.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="c1">#this loop could also control the time and/or use a counter to decide on an</span>
+<span class="go">action in case of failure</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">While</span> <span class="kc">True</span><span class="p">:</span>
+<span class="gp">&gt;&gt;&gt; </span>  <span class="n">drt_status</span> <span class="o">=</span> <span class="n">drt</span><span class="o">.</span><span class="n">get_status</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span>  <span class="n">pos_status</span> <span class="o">=</span> <span class="n">drt</span><span class="o">.</span><span class="n">get_status</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span>  <span class="n">tcs_status</span> <span class="o">=</span> <span class="n">drt</span><span class="o">.</span><span class="n">get_status</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span> <span class="k">if</span> <span class="p">((</span><span class="n">drt_status</span><span class="o">==</span><span class="mi">0</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">pos_status</span><span class="o">==</span><span class="mi">0</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">tcs_status</span><span class="o">==</span><span class="mi">0</span><span class="p">)):</span>
+<span class="gp">&gt;&gt;&gt; </span>      <span class="k">break</span>
+<span class="gp">&gt;&gt;&gt; </span> <span class="k">else</span><span class="p">:</span>
+<span class="gp">&gt;&gt;&gt; </span>      <span class="c1">#keep waiting or find out what&#39;s wrong and fix it</span>
+<span class="go">&gt;&gt;&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span> <span class="c1"># a small pause can be added here to release some pressure from this loop</span>
+</pre></div>
+</div>
+<p>By the end of this loop TAIPAN is ready to start a new task.</p>
+</div>
+</div>
+<div class="section" id="system-considerations">
+<h2>System Considerations<a class="headerlink" href="#system-considerations" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="error-handling">
+<h3>Error Handling<a class="headerlink" href="#error-handling" title="Permalink to this headline">¶</a></h3>
+<p>The TAIPAN module, as well as the lower level modules py2drama and dpython, are
+designed to handle all foreseeable errors. Modules will always import and
+methods should not produce unhandled errors. This is aimed towards letting
+Jeeves run even when the background tasks don’t behave as expected. All methods
+available to Jeeves return True/False indicating their success. In addition,
+the TAIPAN module provides several variables that can be monitored to allow
+Jeeves to decide on a corrective action if necesary.</p>
+</div>
+<div class="section" id="monitoring-module-import-status-successdict">
+<h3>Monitoring module import status - successDict<a class="headerlink" href="#monitoring-module-import-status-successdict" title="Permalink to this headline">¶</a></h3>
+<p>Modules throughout the system include a dictionary called successDict that
+reports the status of the module’s components. This is used to capture the
+result of an import.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Example:</th><td class="field-body"><div class="first last highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">TAIPAN</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span> <span class="n">TAIPAN</span><span class="o">.</span><span class="n">successDict</span> <span class="p">{</span><span class="s1">&#39;py2drama&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span> <span class="s1">&#39;defaultValues&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span> <span class="s1">&#39;externalModules&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">}</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span> <span class="n">TAIPAN</span><span class="o">.</span><span class="n">p2d</span><span class="o">.</span><span class="n">successDict</span> <span class="p">{</span><span class="s1">&#39;MSGLoop&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span> <span class="s1">&#39;dpythonModule&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span> <span class="s1">&#39;ctLink&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span> <span class="s1">&#39;externalModules&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">}</span>
+</pre></div>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+<p>It allows the calling module, usually Jeeves, to decide the following action
+based on this result. Reading the different items in the successDict, an action
+can be taken in case of error.</p>
+</div>
+<div class="section" id="logging">
+<h3>Logging<a class="headerlink" href="#logging" title="Permalink to this headline">¶</a></h3>
+<p>TAIPAN includes a centralised logging module. All actions report to this module
+using a text description of the action and a logging level. The 5 available
+logging levels are DEBUG, INFO, WARNING, ERROR and CRITICAL. Each message has a
+hard-coded logging level based on its severity.</p>
+<p>Log messages are written to a specified file, currently named TAIPAN.log that
+resides in the TAIPAN folder. This is likely to change. Not all messages are
+written to the file. The threshold level that sets the cutoff for what messages
+make it to the file can be changed. During development is set to DEBUG (all
+messages make it) and during standard operations is set to WARNING (only
+WARNING, ERROR and CRITICAL messages end up in the file). The level of detail
+written to this file can be set by using the function</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">TAIPAN</span><span class="o">.</span><span class="n">set_logging_level</span><span class="p">(</span><span class="n">logLevel</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>where logLevel can be any of the 5 logging levels. Any other keyword will leave
+the level unchanged.</p>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">TAIPAN Manual</a><ul>
+<li><a class="reference internal" href="#quick-examples">Quick Examples</a><ul>
+<li><a class="reference internal" href="#to-allow-access-to-the-positioner-through-the-object-pos">To allow access to the positioner through the object pos</a></li>
+<li><a class="reference internal" href="#to-configure-the-positioner">To configure the positioner</a></li>
+<li><a class="reference internal" href="#to-perform-more-than-1-action-at-the-same-time">To perform more than 1 action at the same time</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#system-considerations">System Considerations</a><ul>
+<li><a class="reference internal" href="#error-handling">Error Handling</a></li>
+<li><a class="reference internal" href="#monitoring-module-import-status-successdict">Monitoring module import status - successDict</a></li>
+<li><a class="reference internal" href="#logging">Logging</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="about.html"
+                        title="previous chapter">About</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="reference.html"
+                        title="next chapter">PRAXIS reference manual</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/manual.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="reference.html" title="PRAXIS reference manual"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="about.html" title="About"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">PRAXIS  documentation</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2018, Carlos Bacigalupo.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.7.2.
+    </div>
+  </body>
+</html>
