@@ -127,14 +127,13 @@ class detectorClient:
         self.SendAndReply(self.cmdDict["setramode"])
         print ''
         
-    def setExposure(self, nreset, nread, ngroup, exptime, nramp):
+    def setFSExposure(self, nreset, nread, ngroup, exptime, nramp):
         
         print "Setting params..."
         self.SendAndReply("%s(%s,%s,%s,%s,%s)\r\n"
                           % (self.cmdDict["setfspar"], nreset, nread, ngroup, exptime, nramp))
         self.set_timeout(exptime*1.5)
                
-        self.set_timeout(30)
         
     def runExposure(self):
         
@@ -143,7 +142,7 @@ class detectorClient:
         self.set_timeout(30)
 
 
-
+frameTime =  1.47528
 
 if __name__ == '__main__':
 
@@ -157,6 +156,8 @@ if __name__ == '__main__':
     parser.add_argument('-ngroup', help='Number of groups [1]', type=int, default=1, dest='ngroup')
     parser.add_argument('-exptime', help='Exposure time in seconds [1]', type=float, default=1., dest='exptime')
     parser.add_argument('-nramp', help='Number of ramps. [1]', type=int, default=1, dest='nramp')
+    parser.add_argument('-ndrops', help='Number of drops. [1]', type=int, default=1, dest='ndrops')
+    parser.add_argument('-configonly', help='Only configuration. [True]', type=bool, default=1, dest='configOnly')
  
     args = parser.parse_args()
     print 'Command line arguments:', args
@@ -176,21 +177,28 @@ if __name__ == '__main__':
     #print current config     
     det.getConfig()
     
-    # Set sampling mode
-    if args.smode==0:
-        det.setUTRamp()
-    else:
-        det.setFS()
-
-    # configure exposure
-    det.setExposure(nreset = args.nreset, 
+    if not args.configOnly:
+        
+        # Set sampling mode
+        if args.smode==0:
+            det.setUTRamp()
+            det.setFSExposure(nreset = args.nreset, 
                     nread = args.nread, 
                     ngroup = args.ngroup, 
                     exptime = args.exptime, 
                     nramp = args.nramp)
-
-    # expose
-    det.runExposure()
+    
+        else:
+            det.setFS()
+            det.setFSExposure(nreset = args.nreset, 
+                            nread = args.nread, 
+                            ngroup = args.ngroup, 
+                            exptime = args.exptime, 
+                            nramp = args.nramp)
+    
+    
+        # expose
+        det.runExposure()
 
         
     # wrap up
