@@ -19,12 +19,12 @@ class detectorClient:
     def __init__(self, host):
         self.host = host
         self.port = 5000
-
         self.size = 1024
         self.detectorSocket = None
         self.running = 1
         self.expTime = 1.0  # in ms
         self.loopcnt = 1
+        self.frameTime =  1.47528
         self.promptSend = True
         
         self.cmdDict = {
@@ -37,6 +37,7 @@ class detectorClient:
                 "setoutputnorsf":"SETOUTPUTRESETFRAME(0)\r\n",
                 "acqramp":"ACQUIRERAMP\r\n",
                 # parameterized
+                "setramppar":"SETRAMPPARAM",
                 "setfspar":"SETFSPARAM"
                 }
                 
@@ -118,20 +119,36 @@ class detectorClient:
             
         
     def setFS(self):
-        print 'Sending fsmode'
+        print 'Sending FS mode'
         self.SendAndReply(self.cmdDict["setfsmode"])
         print ''
         
     def setUTRamp(self):
-        print 'Sending UTRamp'
+        print 'Sending UTRamp mode'
         self.SendAndReply(self.cmdDict["setramode"])
         print ''
         
     def setFSExposure(self, nreset, nread, ngroup, exptime, nramp):
         
-        print "Setting params..."
+        print "Setting FS params..."
         self.SendAndReply("%s(%s,%s,%s,%s,%s)\r\n"
                           % (self.cmdDict["setfspar"], nreset, nread, ngroup, exptime, nramp))
+        self.set_timeout(exptime*1.5)
+
+    def setUTExposure(self, nreset, nread, ngroup, exptime, nramp):
+        print "Calculating ramp params..."
+        nread = 1
+        ndrops = exptime/ngroup/self.frameTime-1
+        print 'Using ',
+        print 'nreset', nreset, 
+        print 'nread', nread, 
+        print 'ngroup', ngroup, 
+        print 'ndrops', ndrops, 
+        print 'nramp', nramp
+        
+        print "Setting ramp params..."
+        self.SendAndReply("%s(%s,%s,%s,%s,%s)\r\n"
+                          % (self.cmdDict["setramppar"], nreset, nread, ngroup, ndrops, nramp))
         self.set_timeout(exptime*1.5)
                
         
@@ -142,7 +159,7 @@ class detectorClient:
         self.set_timeout(30)
 
 
-frameTime =  1.47528
+
 
 if __name__ == '__main__':
 
@@ -182,7 +199,7 @@ if __name__ == '__main__':
         # Set sampling mode
         if args.smode==0:
             det.setUTRamp()
-            det.setFSExposure(nreset = args.nreset, 
+            det.setUTExposure(nreset = args.nreset, 
                     nread = args.nread, 
                     ngroup = args.ngroup, 
                     exptime = args.exptime, 
