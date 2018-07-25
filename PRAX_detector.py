@@ -165,8 +165,8 @@ if __name__ == '__main__':
 
     # arg parsing for command line version 
     parser = argparse.ArgumentParser(description='PRAXIS Detector. Python wrapper to trigger exposures.')
-    parser.add_argument('-host', help='Host IP. [10.80.127.5]', type=str, default='10.80.127.5', dest='host')
-    parser.add_argument('-smode', help='Sampling mode. 0/1 for up the ramp or Fowler Sampling. [1]',
+    parser.add_argument('-host', help='Host IP. [10.88.31.151]', type=str, default='10.88.31.151', dest='host')
+    parser.add_argument('-smode', help='Sampling mode. 0 for up the ramp or 1 for Fowler Sampling. [1]',
                          type=int, default=1, dest='smode')
     parser.add_argument('-nreset', help='Number of resets. [2]', type=int, default=2, dest='nreset')
     parser.add_argument('-nread', help='Number of reads. [1]', type=int, default=1, dest='nread')
@@ -174,7 +174,7 @@ if __name__ == '__main__':
     parser.add_argument('-exptime', help='Exposure time in seconds [1]', type=float, default=1., dest='exptime')
     parser.add_argument('-nramp', help='Number of ramps. [1]', type=int, default=1, dest='nramp')
     parser.add_argument('-ndrops', help='Number of drops. [1]', type=int, default=1, dest='ndrops')
-    parser.add_argument('-configonly', help='Only configuration. [True]', type=bool, default=1, dest='configOnly')
+    parser.add_argument('-configOnly', help='Only configuration. [True]', type=int, default=1, dest='configOnly')
  
     args = parser.parse_args()
     print 'Command line arguments:', args
@@ -195,7 +195,7 @@ if __name__ == '__main__':
     det.getConfig()
     
     if not args.configOnly:
-        
+        print "here"    
         # Set sampling mode
         if args.smode==0:
             det.setUTRamp()
