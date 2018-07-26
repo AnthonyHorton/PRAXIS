@@ -11,7 +11,7 @@ rf = 0.055/2 # radius to the flat edge
 r = rf * 2 /3**0.5 # radius of the circle around 
 rs = np.sin(np.pi/6) * r # short radius
 
-
+W = np.array([[700,827],[ 1523, 1218]])
 
 def parseFile(filename, tramLines):
     '''
@@ -40,8 +40,7 @@ def parseFile(filename, tramLines):
         return False
     
     
-    mainData = mainFile[0].data
-    
+    mainData = mainFile[0].data[W[0,1]:W[1,1],W[0,0]:W[1,0]]
     if args.divide:
         try:
             divFile = pf.open(args.divide)
@@ -50,7 +49,7 @@ def parseFile(filename, tramLines):
             return False
 
         print 'Dividing by', args.divide
-        divData = divFile[0].data
+        divData = divFile[0].data[W[0,1]:W[1,1],W[0,0]:W[1,0]]
         mainData /= divData
         
     if args.subtract:
@@ -60,7 +59,7 @@ def parseFile(filename, tramLines):
             print 'Could not open subtract file.'
             return False
         
-        subData = subFile[0].data
+        subData = subFile[0].data[W[0,1]:W[1,1],W[0,0]:W[1,0]]
         if args.divide:
             subData /= divData
         
@@ -72,6 +71,7 @@ def parseFile(filename, tramLines):
     for i in range(19):
         thisTramCoords = np.where(tramLines==i)
         thisFlux = np.sum(mainData[tramLines[thisTramCoords]])
+        
         print i+1, thisFlux
         hexArray[i,2] = thisFlux
     
@@ -146,9 +146,9 @@ def initialiseTramLines():
         c = tramCoef[i,2]
         
         for k in range(5): #4px with
-            for x in range(700, 1523):
-                y = (a+828+k + b*x + c * x**2)
-                tramLines.append([i,x,y])
+            for x in range(20, 790):
+                y = (a+k + b*x + c * x**2)
+                if a!=0: tramLines.append([i,x,y])
 
     tramLines = np.array(tramLines).astype(int)
 
@@ -195,8 +195,8 @@ def plotTramlines(filename, tramLines):
         print 'Could not open file.'
         return False
 
-    thisData = thisFile[0].data
-    plt.imshow(np.log(thisData))
+    thisData = thisFile[0].data[W[0,1]:W[1,1],W[0,0]:W[1,0]]
+    plt.imshow(np.sqrt(thisData), origin='lower')
     plt.plot(tramLines[:,1],tramLines[:,2], 'r.')
     plt.show()
     
