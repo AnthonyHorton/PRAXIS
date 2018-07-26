@@ -7,10 +7,9 @@ from matplotlib import pyplot as plt
 from matplotlib.patches import RegularPolygon
 
 
-rf = 0.055/2 # radius to the flat edge
-r = rf * 2 /3**0.5 # radius of the circle around
-rs = np.sin(np.pi/6) * r # short radius
-
+rf = 0.055/2  # radius to the flat edge
+r = rf * 2 / 3**0.5  # radius of the circle around
+rs = np.sin(np.pi/6) * r  # short radius
 
 
 def parseFile(filename, tramLines):
@@ -29,16 +28,14 @@ def parseFile(filename, tramLines):
 
     '''
 
-
     hexArray = initialiseHexArray()
 
-    #Check if file exists
+    # Check if file exists
     try:
         mainFile = pf.open(filename)
     except:
         print('Could not open main file.')
         return False
-
 
     mainData = mainFile[0].data
 
@@ -67,53 +64,56 @@ def parseFile(filename, tramLines):
         print('Subtracting by', args.subtract)
         mainData -= subData
 
-
     print('Sum(flux) for each fibre:')
     for i in range(19):
-        thisTramCoords = np.where(tramLines==i)
+        thisTramCoords = np.where(tramLines == i)
         thisFlux = np.sum(mainData[tramLines[thisTramCoords]])
         print(i+1, thisFlux)
-        hexArray[i,2] = thisFlux
+        hexArray[i, 2] = thisFlux
 
-    hexArray[:,2] -= np.min(hexArray[:,2])
-    hexArray[:,2] /= np.max(hexArray[:,2])
+    hexArray[:, 2] -= np.min(hexArray[:, 2])
+    hexArray[:, 2] /= np.max(hexArray[:, 2])
 
     return hexArray
+
 
 def initialiseHexArray():
 
+    # hexArray[idx] = [centreX,centreY,flux]
+    # fibre number = idx+1
+    hexArray = np.ones((19, 3)) * np.nan
 
-    #hexArray[idx] = [centreX,centreY,flux]
-    #fibre number = idx+1
-    hexArray = np.ones((19,3)) *np.nan
-
-    hexArray[0] = [0,0,0]
-    hexArray[1] = [rf,r+rs,0]
-    hexArray[2] = [2*rf,0,0]
-    hexArray[3] = [rf,-(r+rs),0]
-    hexArray[4] = [-rf,-(r+rs),0]
-    hexArray[5] = [-2*rf,0,0]
-    hexArray[6] = [-rf,r+rs,0]
-    hexArray[7] = [0,2*(r+rs),0]
-    hexArray[8] = [2*rf,2*(r+rs),0]
-    hexArray[9] = [3*rf,(r+rs),0]
-    hexArray[10] = [4*rf,0,0]
-    hexArray[11] = [3*rf,-(r+rs),0]
-    hexArray[12] = [2*rf,-2*(r+rs),0]
-    hexArray[13] = [0,-2*(r+rs),0]
-    hexArray[14] = [-2*rf,-2*(r+rs),0]
-    hexArray[15] = [-3*rf,-(r+rs),0]
-    hexArray[16] = [-4*rf,0,0]
-    hexArray[17] = [-3*rf,(r+rs),0]
-    hexArray[18] = [-2*rf,2*(r+rs),0]
+    hexArray[0] = [0, 0, 0]
+    hexArray[1] = [rf, r+rs, 0]
+    hexArray[2] = [2*rf, 0, 0]
+    hexArray[3] = [rf, -(r+rs), 0]
+    hexArray[4] = [-rf, -(r+rs), 0]
+    hexArray[5] = [-2*rf, 0, 0]
+    hexArray[6] = [-rf, r+rs, 0]
+    hexArray[7] = [0, 2*(r+rs), 0]
+    hexArray[8] = [2*rf, 2*(r+rs), 0]
+    hexArray[9] = [3*rf, (r+rs), 0]
+    hexArray[10] = [4*rf, 0, 0]
+    hexArray[11] = [3*rf, -(r+rs), 0]
+    hexArray[12] = [2*rf, -2*(r+rs), 0]
+    hexArray[13] = [0, -2*(r+rs), 0]
+    hexArray[14] = [-2*rf, -2*(r+rs), 0]
+    hexArray[15] = [-3*rf, -(r+rs), 0]
+    hexArray[16] = [-4*rf, 0, 0]
+    hexArray[17] = [-3*rf, (r+rs), 0]
+    hexArray[18] = [-2*rf, 2*(r+rs), 0]
 
     return hexArray
+
+
 '''
 Actually these will only make sense if you first select a subwindow:   x :700 - 1523 and y: 830 - 1218
 
 or add 830 to a, and 700 to x.
 y=a+ b x+ c xx
 '''
+
+
 def initialiseTramLines():
     a = []
     a.append([63.8168, 0.00159368, -5.14315*10**-6])
@@ -141,14 +141,14 @@ def initialiseTramLines():
     #     tramCoef = np.load('tram_coef.npy')
 
     for i in range(19):
-        a = tramCoef[i,0]
-        b = tramCoef[i,1]
-        c = tramCoef[i,2]
+        a = tramCoef[i, 0]
+        b = tramCoef[i, 1]
+        c = tramCoef[i, 2]
 
-        for k in range(5): #4px with
+        for k in range(5): #4 px with
             for x in range(700, 1523):
                 y = (a+828+k + b*x + c * x**2)
-                tramLines.append([i,x,y])
+                tramLines.append([i, x, y])
 
     tramLines = np.array(tramLines).astype(int)
 
@@ -165,19 +165,23 @@ def plotHexagons(hexArray, args):
     fig, ax = plt.subplots()
 
     ax.set_aspect('equal')
-    i=1
-    for x, y, flux in zip(hexArray[:,0], hexArray[:,1], hexArray[:,2]):
-        thisHex = RegularPolygon((x, y), numVertices=6, radius=r,
-                             orientation=0,
-                             facecolor=str(flux), lw=0)
+    i = 1
+    for x, y, flux in zip(hexArray[:, 0], hexArray[:, 1], hexArray[:, 2]):
+        thisHex = RegularPolygon((x, y),
+                                 numVertices=6,
+                                 radius=r,
+                                 orientation=0,
+                                 facecolor=str(flux),
+                                 lw=0)
         ax.add_patch(thisHex)
 
         # Also add a text label
-        if args.labels: ax.text(x, y, i, ha='center', va='center', size=10)
-        i+=1
+        if args.labels:
+            ax.text(x, y, i, ha='center', va='center', size=10)
+        i += 1
 
-    plt.xlim(-0.2,0.2)
-    plt.ylim(-0.2,0.2)
+    plt.xlim(-0.2, 0.2)
+    plt.ylim(-0.2, 0.2)
     plt.grid(True)
     ax.set_axisbelow(True)
     plt.title(args.fileName)
@@ -188,7 +192,7 @@ def plotHexagons(hexArray, args):
 
 def plotTramlines(filename, tramLines):
 
-    #Check if file exists
+    # Check if file exists
     try:
         thisFile = pf.open(filename)
     except:
@@ -197,12 +201,13 @@ def plotTramlines(filename, tramLines):
 
     thisData = thisFile[0].data
     plt.imshow(np.log(thisData))
-    plt.plot(tramLines[:,1],tramLines[:,2], 'r.')
+    plt.plot(tramLines[:, 1], tramLines[:, 2], 'r.')
     plt.show()
+
 
 if __name__ == '__main__':
 
-    #arg parsing for command line version
+    # arg parsing for command line version
     parser = argparse.ArgumentParser(description='PRAXIS Viewer. Visualisation tool for PRAXIS data sets.')
     parser.add_argument('-f', help='Input file.', type=str, default='PRAXIS_sample.fits', dest='fileName')
     parser.add_argument('-tram', help='Plot of tramlines', type=bool, default=False, dest='tram')
@@ -219,7 +224,7 @@ if __name__ == '__main__':
     if args.tram:
         plotTramlines(args.fileName, tramLines)
 
-    hexArray  = parseFile(args.fileName, tramLines)
+    hexArray = parseFile(args.fileName, tramLines)
 
     print()
     print('HexArray (x,y, Normalised flux):')
