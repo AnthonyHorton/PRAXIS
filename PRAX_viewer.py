@@ -108,19 +108,49 @@ def initialiseHexArray():
     hexArray[18] = [-2*rf,2*(r+rs),0]
 
     return hexArray
+'''
+Actually these will only make sense if you first select a subwindow:   x :700 - 1523 and y: 830 - 1218
 
+or add 830 to a, and 700 to x.
+y=a+ b x+ c xx
+'''
 def initialiseTramLines():
+    a = []
+    a.append([63.8168, 0.00159368, -5.14315*10**-6])
+    a.append([75.6552, 0.0018184, -5.28723*10**-6])
+    a.append([87.6753, 0.00110761, -4.25759*10**-6]) 
+    a.append([99.742, 0.0017248, -5.03802*10**-6]) 
+    a.append([111.731, 0.00182788, -5.14512*10**-6]) 
+    a.append([123.743, 0.00134928, -4.50364*10**-6]) 
+    a.append([135.788, -0.000400901,  -2.13853*10**-6]) 
+    a.append([0., 0., 0.])
+    a.append([159.696, -0.00134634,  -5.88114*10**-7]) 
+    a.append([171.742, -0.00092513, -1.22513*10**-6]) 
+    a.append([183.977, -0.00178464, -1.29449*10**-6]) 
+    a.append([0., 0., 0.]) 
+    a.append([267.469, -0.00266766, 1.18696*10**-6]) 
+    a.append([279.389, -0.00292473, 1.93398*10**-6]) 
+    a.append([291.537, -0.00307161, 1.99748*10**-6]) 
+    a.append([303.404, -0.00289977,  1.7745*10**-6]) 
+    a.append([315.713, -0.00382432,  2.36483*10**-6]) 
+    a.append([327.903, -0.00511395,  3.98343*10**-6]) 
+    a.append([339.219, -0.00243858, 1.55742*10**-6])    
+    tramCoef = np.array(a)
     
     tramLines = []
-    
-    for i in range(19):
-        for j in range(500, 1500):
-            kStart = 1068+i*50
-            kEnd = kStart + 4
-            for k in range(kStart, kEnd):
-                tramLines.append([i,j,k])
+    #     tramCoef = np.load('tram_coef.npy')
 
-    tramLines = np.array(tramLines)
+    for i in range(19):
+        a = tramCoef[i,0]
+        b = tramCoef[i,1]
+        c = tramCoef[i,2]
+        
+        for k in range(5): #4px with
+            for x in range(700, 1523):
+                y = (a+828+k + b*x + c * x**2)
+                tramLines.append([i,x,y])
+
+    tramLines = np.array(tramLines).astype(int)
 
     return tramLines
 
@@ -166,7 +196,7 @@ def plotTramlines(filename, tramLines):
         return False
 
     thisData = thisFile[0].data
-    plt.imshow(thisData)
+    plt.imshow(np.log(thisData))
     plt.plot(tramLines[:,1],tramLines[:,2], 'r.')
     plt.show()
     
