@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as colours
 from matplotlib.patches import RegularPolygon
 
-
 radius_flat = 0.055 / 2  # radius to the flat edge
 radius = radius_flat * 2 / 3**0.5  # radius of the circle around
 radius_short = np.sin(np.pi/6) * radius  # short radius
@@ -36,7 +35,7 @@ tram_coef = ((63.8168, 0.00159368, -5.14315*10**-6),
              (339.219, -0.00243858, 1.55742*10**-6))
 
 
-def parse_file(filename, tramlines):
+def process_data(main_data, tramlines, subtract=None, divide=None):
     '''
     Takes an input file and tramline parameters and returns the flux for each of the 19 fibres
 
@@ -51,58 +50,37 @@ def parse_file(filename, tramlines):
         Creating random data at the moment until tramlines are calculated
 
     '''
-
-    hex_array = initialise_hex_array()
-
-    # Check if file exists
-    try:
-        main_file = pf.open(filename)
-    except Exception as err:
-        warnings.warn('Could not open main file {}'.format(filename))
-        raise err
-
-    main_data = main_file[0].data[window[0][0]:window[0][1], window[1][0]:window[1][1]]
-    if args.divide:
-        try:
-            div_file = pf.open(args.divide)
-        except Exception as err:
-            warnings.warn('Could not open divide file {}.'.format(args.divide))
-            raise err
-
-        print('Dividing {} by {}'.format(fileame, arg.divide))
-        div_data = div_file[0].data[window[0][0]:window[0][1], window[1][0]:window[1][1]]
-        main_data /= div_data
-
     if args.subtract:
         try:
-            sub_file = pf.open(args.subtract)
+            with pf.open(subtract) as hdulist:
+                sub_data = hdulist[0].data[window[0][0]:window[0][1], window[1][0]:window[1][1]]
         except Exception as err:
             warnings.warn('Could not open subtract file {}.'.format(args.subtract))
             raise err
+        print('Subtracting {} from image'.format(subtract))
+        main_data = main_data - sub_data
 
-        sub_data = sub_file[0].data[window[0][0]:window[0][1], window[1][0]:window[1][1]]
-        if args.divide:
-            sub_data /= div_data
-
-        print('Subtracting {} from {}'.format(args.subtract, filename))
-        main_data -= sub_data
+    if divide:
+        try:
+            with pf.open(divide) as hdulist:
+                div_data = hdulist[0].data[window[0][0]:window[0][1], window[1][0]:window[1][1]]
+        except Exception as err:
+            warnings.warn('Could not open divide file {}.'.format(args.divide))
+            raise err
+        print('Dividing image by {}'.format(divide))
+        main_data = main_data / div_data
 
     print('Sum flux for each fibre:')
+    fluxes = []
     for i, tramline in enumerate(tramlines):
         flux = np.sum(main_data[tramline])
-        print(i+1, flux)
-        if flux == 0:
-            hex_array[i, 2] = np.nan
-        else:
-            hex_array[i, 2] = flux
+        print("{}: {}".format(i + 1, flux))
+        fluxes.append(flux)
 
-    hex_array[:, 2] -= np.nanmin(hex_array[:, 2])
-    hex_array[:, 2] /= np.nanmax(hex_array[:, 2])
-
-    return hex_array
+    return fluxes
 
 
-def initialise_hex_array():
+def make_hex_array(fluxes, subtract):
 
     # hexArray[idx] = [centreX,centreY,flux]
     # fibre number = idx+1
@@ -128,17 +106,21 @@ def initialise_hex_array():
     hex_array[17] = [-3 * radius_flat, (radius + radius_short), 0]
     hex_array[18] = [-2 * radius_flat, 2 * (radius + radius_short), 0]
 
+    hex_array[:, 2] = np.array(fluxes)
+    if subtract:
+        hex_array[:, 2] = hex_array[:, 2] - np.nanmax(hex_array[:, 2])
+    hex_array[:, 2] /= np.nanmax(hex_array[:, 2])
+
     return hex_array
 
 
 '''
-Actually these will only make sense if you first select a subwindow:   x :700 - 1523 and y: 830 - 1218
-
-or add 830 to a, and 700 to x.
-y=a+ b x+ c xx
+Actually these will only make sense if you first select a subwindow: x :700 - 1523 and y: 830 - 1218
+or add 830 to a, and 700 to x. y=a+ b x+ c xx
 '''
 
-def initialise_tramlines(width=4):
+
+def initialise_tramlines(width):
 
     xs = np.arange(0, window[1][1] - window[1][0])
     x_grid, y_grid = np.meshgrid(xs, np.arange(width))
@@ -159,6 +141,11 @@ def initialise_tramlines(width=4):
         # Reshape into (y coords, x coords) for numpy indexing
         tramline = (ys.ravel(), x_grid.ravel())
         tramlines.append(tramline)
+    if args.tram:
+        plot_tramlines(tramlines, main_data)
+
+    # Fibre number increases with decreasing y, but tram_coef is in order of increasing y.
+    tramlines.reverse()
 
     return tramlines
 
@@ -173,7 +160,7 @@ def plot_hexagons(hex_array, args):
 
     ax.set_aspect('equal')
     for i, (x, y, flux) in enumerate(hex_array):
-        if np.isnan(flux):
+        if flux == 0.0:
             colour = 'red'
         else:
             colour = str(flux)
@@ -199,14 +186,7 @@ def plot_hexagons(hex_array, args):
     plt.show()
 
 
-def plot_tramlines(filename, tramlines):
-
-    # Check if file exists
-    try:
-        image_data = pf.getdata(filename)[window[0][0]:window[0][1], window[1][0]:window[1][1]]
-    except Exception as err:
-        warnings.warn('Could not open file {}'.format(filename))
-        raise err
+def plot_tramlines(tramlines, image_data):
 
     mask = np.ones_like(image_data)
     for tramline in tramlines:
@@ -225,29 +205,31 @@ def plot_tramlines(filename, tramlines):
 
 
 if __name__ == '__main__':
-
     # arg parsing for command line version
-    parser = argparse.ArgumentParser(description='PRAXIS Viewer. Visualisation tool for PRAXIS data sets.')
+    description = 'PRAXIS Viewer. Visualisation tool for PRAXIS data sets.'
+    parser = argparse.ArgumentParser(description=description)
     parser.add_argument('filename', help='Input file.', type=str)
-    parser.add_argument('--width', help='Width for extraction', type=int)
+    parser.add_argument('--width', help='Width for extraction', type=int, default=5)
     parser.add_argument('--tram', help='Plot of tramlines', action='store_true')
     parser.add_argument('--labels', help='Show fibre labels on plot', action='store_true')
     parser.add_argument('--divide', help='Image for flat dividing', type=str)
     parser.add_argument('--subtract', help='Image for sky subtracting', type=str)
     args = parser.parse_args()
-
     print(args)
     print()
 
+    try:
+        with pf.open(args.filename) as hdulist:
+            main_data = hdulist[0].data[window[0][0]:window[0][1], window[1][0]:window[1][1]]
+    except Exception as err:
+        warnings.warn('Could not open main file {}'.format(filename))
+        raise err
+    print('Read data from {}'.format(args.filename))
+
     tramlines = initialise_tramlines(args.width)
-
     if args.tram:
-        plot_tramlines(args.filename, tramlines)
-
-    hex_array = parse_file(args.filename, tramlines)
-
-    print()
-    print('Hex_array (x, y, normalised flux):')
-    print(hex_array)
+        plot_tramlines(tramlines, main_data)
+    fluxes = process_data(main_data, tramlines, args.subtract, args.divide)
+    hex_array = make_hex_array(fluxes, not args.subtract)
     if np.sum(hex_array):
         plot_hexagons(hex_array, args)
