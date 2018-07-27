@@ -50,3 +50,12 @@ To run on an earlier image specify its datetime:
 ```
 ./PRAXIS_viewer.py --filename 20180727121602 --subtract 20180727103250
 ```
+
+To list other options:
+```
+./PRAXIS_viewer.py --help
+```
+
+## Example output
+
+![Example output](example.png)
