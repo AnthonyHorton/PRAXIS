@@ -2,6 +2,9 @@
 from __future__ import print_function, division
 import argparse
 import warnings
+import os
+import glob
+
 import numpy as np
 import astropy.io.fits as pf
 import matplotlib.pyplot as plt
@@ -51,27 +54,29 @@ def process_data(main_data, tramlines, subtract=None, divide=None):
         main_data (np.array): processed image data
         fluxes (list of floats): Summed flux for each fibre
     """
-    if args.subtract:
+    if subtract:
+        subtract = check_path(subtract)
         try:
             with pf.open(subtract) as hdulist:
                 sub_data = hdulist[0].data[window[0][0]:window[0][1], window[1][0]:window[1][1]]
         except Exception as err:
             warnings.warn('Could not open subtract file {}.'.format(args.subtract))
             raise err
-        print('Subtracting {} from image'.format(subtract))
+        print('Subtracting {} from image\n'.format(subtract))
         main_data = main_data - sub_data
 
     if divide:
+        divide = check_path(divide)
         try:
             with pf.open(divide) as hdulist:
                 div_data = hdulist[0].data[window[0][0]:window[0][1], window[1][0]:window[1][1]]
         except Exception as err:
             warnings.warn('Could not open divide file {}.'.format(args.divide))
             raise err
-        print('Dividing image by {}'.format(divide))
+        print('Dividing image by {}\n'.format(divide))
         main_data = main_data / div_data
 
-    print('Sum flux for each fibre:')
+    print('Sum flux for each fibre:\n')
     fluxes = []
     for i, tramline in enumerate(tramlines):
         flux = np.sum(main_data[tramline])
@@ -116,9 +121,10 @@ def make_hex_array(fluxes, subtract):
     hex_array[17] = [3 * radius_flat, (radius + radius_short), 0]
     hex_array[18] = [2 * radius_flat, 2 * (radius + radius_short), 0]
 
-    hex_array[:, 2] = np.array(fluxes)
+    fluxes = np.array(fluxes)
+    hex_array[:, 2] = np.where(fluxes > 0.0, fluxes, np.nan)
     if subtract:
-        hex_array[:, 2] = hex_array[:, 2] - np.nanmax(hex_array[:, 2])
+        hex_array[:, 2] = hex_array[:, 2] - np.nanmin(hex_array[:, 2])
     hex_array[:, 2] /= np.nanmax(hex_array[:, 2])
 
     return hex_array
@@ -164,7 +170,7 @@ def initialise_tramlines(width):
     return tramlines
 
 
-def plot_hexagons(hex_array, args, spectrum):
+def plot_hexagons(hex_array, nolabels, filename, spectrum):
     """
     Plots the reconstructed IFU image and spectrum from the brightest fibre.
     """
@@ -172,7 +178,7 @@ def plot_hexagons(hex_array, args, spectrum):
     ax1 = fig.add_subplot(1, 2, 1)
     ax1.set_aspect('equal')
     for i, (x, y, flux) in enumerate(hex_array):
-        if flux == 0.0:
+        if np.isnan(flux):
             colour = 'red'
         else:
             colour = str(flux)
@@ -185,14 +191,14 @@ def plot_hexagons(hex_array, args, spectrum):
         ax1.add_patch(hex)
 
         # Also add a text label
-        if args.labels:
+        if not nolabels:
             ax1.text(x, y, i + 1, ha='center', va='center', size=10, color='green')
 
     ax1.set_xlim(-1.5, 1.5)
     ax1.set_ylim(-1.5, 1.5)
     ax1.grid(True)
     ax1.set_axisbelow(True)
-    title = "{} IFU reconstruction (North up, East left)".format(args.filename.split('/')[-3])
+    title = "{} IFU reconstruction (North up, East left)".format(filename.split('/')[-3])
     ax1.set_title(title)
     ax1.set_xlabel('Arcsecs')
     ax1.set_ylabel('Arcsecs')
@@ -244,27 +250,82 @@ def extract_spectrum(image_data, tramline):
     return masked_image.sum(axis=0)
 
 
+def find_latest():
+    prefix = os.getenv('PRAXIS')
+    if not prefix:
+        warnings.warn("$PRAXIS environment variable not set!")
+    dirs = glob.glob((os.path.join(prefix, '20*')))
+    if not dirs:
+        raise FileNotFoundError("No PRAXIS data found in {}".format(prefix))
+    dirs.sort()
+    latest_dir = dirs[-1]
+    filename = os.path.join(latest_dir, 'Result/CDSResult.fits')
+    if not os.path.exists(filename):
+        raise FileNotFoundError("{} contains no PRAXIS data".format(latest_dir))
+    return filename
+
+
+def check_path(filename):
+    """
+    Given a (partial) filename attempts to resolve it to a valid path to a PRAXIS data file.
+
+    Args:
+        filename (str): path, optionally a partial path, to a PRAXIS data file.
+
+    Returns:
+        filename (str): path to the PRAXIS data file.
+
+    Notes:
+        If the input filename does not end it '.fits' then 'Result/CDSResult.fits' be added. If
+        the filename is still not a path to an existing file check_path will attempt to prefix
+        filename with the value of the $PRAXIS environment variable.
+
+    Raise:
+        FileNotFoundError: raises if none of the above results in a path to an existing file.
+    """
+    _, extension = os.path.splitext(filename)
+    if extension != ".fits":
+        filename = os.path.join(filename, 'Result/CDSResult.fits')
+    if not os.path.exists(os.path.expandvars(filename)):
+        # Not a direct path to the file. Look for $PRAXIS environment variable and try
+        # prefixing it with that.
+        prefixed_filename = os.path.expandvars(os.path.join('$PRAXIS', filename))
+        if not os.path.exists(prefixed_filename):
+            # That didn't work either.
+            raise FileNotFoundError("Couldn't find input file {}".format(filename))
+        else:
+            filename = prefixed_filename
+    return filename
+
+
 if __name__ == '__main__':
     # arg parsing for command line version
     description = 'PRAXIS Viewer. Visualisation tool for PRAXIS data sets.'
     parser = argparse.ArgumentParser(description=description)
-    parser.add_argument('filename', help='Input file.', type=str)
+    parser.add_argument('--filename', help='Input file.', type=str)
     parser.add_argument('--width', help='Width for extraction', type=int, default=5)
     parser.add_argument('--tram', help='Plot of tramlines', action='store_true')
-    parser.add_argument('--labels', help='Show fibre labels on plot', action='store_true')
+    parser.add_argument('--nolabels', help="Don't show fibre labels on plot", action='store_true')
     parser.add_argument('--divide', help='Image for flat dividing', type=str)
     parser.add_argument('--subtract', help='Image for sky subtracting', type=str)
     args = parser.parse_args()
-    print(args)
-    print()
+    print(" *** PRAXIS Viewer *** \n")
+    print("Arguments: {}\n".format(vars(args)))
+
+    if not args.filename:
+        print("Looking for latest image file...")
+        filename = find_latest()
+        print("Found {}\n".format(filename))
+    else:
+        filename = check_path(args.filename)
 
     try:
-        with pf.open(args.filename) as hdulist:
+        with pf.open(filename) as hdulist:
             main_data = hdulist[0].data[window[0][0]:window[0][1], window[1][0]:window[1][1]]
     except Exception as err:
-        warnings.warn('Could not open main file {}'.format(filename))
+        warnings.warn('Could not open input file {}'.format(filename))
         raise err
-    print('Read data from {}'.format(args.filename))
+    print('Read data from {}\n'.format(filename))
 
     tramlines = initialise_tramlines(args.width)
     if args.tram:
@@ -274,4 +335,4 @@ if __name__ == '__main__':
     peak_spectrum = extract_spectrum(main_data, tramlines[peak_fibre - 1])
     hex_array = make_hex_array(fluxes, not args.subtract)
     if np.sum(hex_array):
-        plot_hexagons(hex_array, args, peak_spectrum)
+        plot_hexagons(hex_array, args.nolabels, filename, peak_spectrum)
