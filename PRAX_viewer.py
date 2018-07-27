@@ -36,20 +36,20 @@ tram_coef = ((63.8168, 0.00159368, -5.14315*10**-6),
 
 
 def process_data(main_data, tramlines, subtract=None, divide=None):
-    '''
-    Takes an input file and tramline parameters and returns the flux for each of the 19 fibres
+    """
+    Takes image data and tramline parameters and returns the flux for each of the 19 fibres
 
     Args:
         filename (str) : The name of the input file
-        tramLines (np.ndarray) : 3D - [[x,y],..],...] list of pixels to sum over for each fibre
+        tramlines (list of (np.array, np.array) tuples): For each fibre a tuple or arrays,
+            containing the y and x coordinates of the pixels to include in the extraction.
+        subtract (str, optional): filename of a sky background image to subtract from the data
+        divide (str, optional): filename of a flat field image to divide the data by. Should have
+            been bias/dark subtracted and normalised first
 
     Returns:
-        hexArray(np.ndarray) = 2D - [[centreX,centreY,flux],...]
-
-    Note:
-        Creating random data at the moment until tramlines are calculated
-
-    '''
+        fluxes (list of floats): Summed flux for each fibre
+    """
     if args.subtract:
         try:
             with pf.open(subtract) as hdulist:
@@ -81,8 +81,17 @@ def process_data(main_data, tramlines, subtract=None, divide=None):
 
 
 def make_hex_array(fluxes, subtract):
+    """
+    Assembles an array containing the hexagonal IFU lenslet centre coordinates together with the
+    corresponding normalised fluxes.
 
-    # hexArray[idx] = [centreX,centreY,flux]
+    Args:
+        fluxes (list of floats): fluxes from each fibre
+        subtract (bool, optional): If true normalise flux values by subtracting the lowest value.
+
+    Returns:
+        hex_array (np.array): hex_array[idx] = [centreX, centreY, flux]
+    """
     # fibre number = idx+1
     hex_array = np.ones((19, 3)) * np.nan
 
@@ -114,14 +123,18 @@ def make_hex_array(fluxes, subtract):
     return hex_array
 
 
-'''
-Actually these will only make sense if you first select a subwindow: x :700 - 1523 and y: 830 - 1218
-or add 830 to a, and 700 to x. y=a+ b x+ c xx
-'''
-
-
 def initialise_tramlines(width):
+    """
+    Used tramline fit from tram_coef to produce a list of tuples of arrays, each tuple contains
+    the y and x coordinates of the pixels to include in the extraction for a given fibreself. When
+    formatted in this way each item in the list can be used directly to index the image data.
 
+    Args:
+        width (int): width, in pixels, of the extraction region
+
+    Returns:
+        tramlines (list of tuples of np.array): pixels coordinates for each fibre
+    """
     xs = np.arange(0, window[1][1] - window[1][0])
     x_grid, y_grid = np.meshgrid(xs, np.arange(width))
 
@@ -151,10 +164,9 @@ def initialise_tramlines(width):
 
 
 def plot_hexagons(hex_array, args):
-    '''
-    Plots the fibre bundle in the spatial distribuition from an image.
-
-    '''
+    """
+    Plots the reconstructed IFU image.
+    """
 
     fig, ax = plt.subplots()
 
@@ -187,7 +199,10 @@ def plot_hexagons(hex_array, args):
 
 
 def plot_tramlines(tramlines, image_data):
-
+    """
+    Displays image data with the tramline extraction regions using the viridis colour map, and
+    the remainder in grey.
+    """
     mask = np.ones_like(image_data)
     for tramline in tramlines:
         mask[tramline] = 0.0
