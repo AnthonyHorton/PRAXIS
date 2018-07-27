@@ -13,7 +13,7 @@ radius_flat = 0.055 / 2  # radius to the flat edge
 radius = radius_flat * 2 / 3**0.5  # radius of the circle around
 radius_short = np.sin(np.pi/6) * radius  # short radius
 
-window = ((830, 1219), (700, 1524))
+window = ((828, 1218), (700, 1523))
 
 tram_coef = ((63.8168, 0.00159368, -5.14315*10**-6),
              (75.6552, 0.0018184, -5.28723*10**-6),
