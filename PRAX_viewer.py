@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as colours
 from matplotlib.patches import RegularPolygon
 
-radius_flat = 0.055 / 2  # radius to the flat edge
+radius_flat = 0.55 / 2  # radius to the flat edge
 radius = radius_flat * 2 / 3**0.5  # radius of the circle around
 radius_short = np.sin(np.pi/6) * radius  # short radius
 
@@ -48,6 +48,7 @@ def process_data(main_data, tramlines, subtract=None, divide=None):
             been bias/dark subtracted and normalised first
 
     Returns:
+        main_data (np.array): processed image data
         fluxes (list of floats): Summed flux for each fibre
     """
     if args.subtract:
@@ -77,7 +78,7 @@ def process_data(main_data, tramlines, subtract=None, divide=None):
         print("{}: {}".format(i + 1, flux))
         fluxes.append(flux)
 
-    return fluxes
+    return main_data, fluxes
 
 
 def make_hex_array(fluxes, subtract):
@@ -163,14 +164,13 @@ def initialise_tramlines(width):
     return tramlines
 
 
-def plot_hexagons(hex_array, args):
+def plot_hexagons(hex_array, args, spectrum):
     """
-    Plots the reconstructed IFU image.
+    Plots the reconstructed IFU image and spectrum from the brightest fibre.
     """
-
-    fig, ax = plt.subplots()
-
-    ax.set_aspect('equal')
+    fig = plt.figure(figsize=(12, 6), tight_layout=True)
+    ax1 = fig.add_subplot(1, 2, 1)
+    ax1.set_aspect('equal')
     for i, (x, y, flux) in enumerate(hex_array):
         if flux == 0.0:
             colour = 'red'
@@ -182,19 +182,27 @@ def plot_hexagons(hex_array, args):
                              orientation=0,
                              facecolor=colour,
                              lw=0)
-        ax.add_patch(hex)
+        ax1.add_patch(hex)
 
         # Also add a text label
         if args.labels:
-            ax.text(x, y, i + 1, ha='center', va='center', size=10, color='green')
+            ax1.text(x, y, i + 1, ha='center', va='center', size=10, color='green')
 
-    plt.xlim(-0.2, 0.2)
-    plt.ylim(-0.2, 0.2)
-    plt.grid(True)
-    ax.set_axisbelow(True)
-    plt.title(args.filename)
-    plt.xlabel('Arcsecs')
-    plt.ylabel('Arcsecs')
+    ax1.set_xlim(-1.5, 1.5)
+    ax1.set_ylim(-1.5, 1.5)
+    ax1.grid(True)
+    ax1.set_axisbelow(True)
+    title = "{} IFU reconstruction (North up, East left)".format(args.filename.split('/')[-3])
+    ax1.set_title(title)
+    ax1.set_xlabel('Arcsecs')
+    ax1.set_ylabel('Arcsecs')
+
+    ax2 = fig.add_subplot(1, 2, 2)
+    ax2.plot(spectrum)
+    ax2.set_title('Peak fibre spectrum')
+    ax2.set_xlim(0, len(spectrum - 1))
+    ax2.set_ylim(0, 1.05 * spectrum.max())
+
     plt.show()
 
 
@@ -217,6 +225,23 @@ def plot_tramlines(tramlines, image_data):
                origin='lower')
     plt.colorbar()
     plt.show()
+
+
+def extract_spectrum(image_data, tramline):
+    """
+    Crude, uncalibrated spectral extraction (just masks image & collapses in y direction)
+
+    Args:
+        image_data (np.array): 2D data
+        tramline (tuples of np.array): y, x coordinates of the spectrum extraction region
+
+    Returns:
+        spectrum (np.array): 1D spectrum
+    """
+    mask = np.ones_like(image_data)
+    mask[tramline] = 0.0
+    masked_image = np.ma.array(image_data, mask=mask)
+    return masked_image.sum(axis=0)
 
 
 if __name__ == '__main__':
@@ -244,7 +269,9 @@ if __name__ == '__main__':
     tramlines = initialise_tramlines(args.width)
     if args.tram:
         plot_tramlines(tramlines, main_data)
-    fluxes = process_data(main_data, tramlines, args.subtract, args.divide)
+    main_data, fluxes = process_data(main_data, tramlines, args.subtract, args.divide)
+    peak_fibre = np.argmax(fluxes) + 1
+    peak_spectrum = extract_spectrum(main_data, tramlines[peak_fibre - 1])
     hex_array = make_hex_array(fluxes, not args.subtract)
     if np.sum(hex_array):
-        plot_hexagons(hex_array, args)
+        plot_hexagons(hex_array, args, peak_spectrum)
