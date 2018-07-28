@@ -82,6 +82,7 @@ def process_data(main_data, tramlines, subtract=None, divide=None):
         flux = np.sum(main_data[tramline])
         print("{}: {}".format(i + 1, flux))
         fluxes.append(flux)
+    print()
 
     return main_data, fluxes
 
@@ -121,11 +122,10 @@ def make_hex_array(fluxes, subtract):
     hex_array[17] = [3 * radius_flat, (radius + radius_short), 0]
     hex_array[18] = [2 * radius_flat, 2 * (radius + radius_short), 0]
 
-    fluxes = np.array(fluxes)
-    hex_array[:, 2] = np.where(fluxes > 0.0, fluxes, np.nan)
+    hex_array[:, 2] = fluxes
     if subtract:
         hex_array[:, 2] = hex_array[:, 2] - np.nanmin(hex_array[:, 2])
-    hex_array[:, 2] /= np.nanmax(hex_array[:, 2])
+    hex_array[:, 2] /= np.nanmax(fluxes)
 
     return hex_array
 
@@ -161,8 +161,6 @@ def initialise_tramlines(width):
         # Reshape into (y coords, x coords) for numpy indexing
         tramline = (ys.ravel(), x_grid.ravel())
         tramlines.append(tramline)
-    if args.tram:
-        plot_tramlines(tramlines, main_data)
 
     # Fibre number increases with decreasing y, but tram_coef is in order of increasing y.
     tramlines.reverse()
@@ -178,7 +176,7 @@ def plot_hexagons(hex_array, nolabels, filename, spectrum):
     ax1 = fig.add_subplot(1, 2, 1)
     ax1.set_aspect('equal')
     for i, (x, y, flux) in enumerate(hex_array):
-        if np.isnan(flux):
+        if np.isnan(flux) or flux == 0:
             colour = 'red'
         else:
             colour = str(flux)
@@ -298,6 +296,29 @@ def check_path(filename):
     return filename
 
 
+def throughput_correction(fluxes, throughput_file):
+    """
+    Reads fibre relative throughputs from a file and corrects the fibre fluxes by
+    divided by the relative throughputs.
+
+    Args:
+        fluxes (np.array): initial fibre fluxes
+        throughput_file (str): path to the file containing relative fibre throughput, in numpy
+            text format
+
+    Returns:
+        fluxes (np.array): corrected fibre fluxes
+    """
+    try:
+        throughputs = np.loadtxt(throughput_file)
+    except Exception as err:
+        warnings.warn("Error opening throughput file {}".format(throughput_file))
+        raise err
+    print("Correcting fibre fluxes with relative throughputs from {}\n".format(throughput_file))
+    fluxes = fluxes / throughputs
+    return fluxes
+
+
 if __name__ == '__main__':
     # arg parsing for command line version
     description = 'PRAXIS Viewer. Visualisation tool for PRAXIS data sets.'
@@ -308,6 +329,8 @@ if __name__ == '__main__':
     parser.add_argument('--nolabels', help="Don't show fibre labels on plot", action='store_true')
     parser.add_argument('--divide', help='Image for flat dividing', type=str)
     parser.add_argument('--subtract', help='Image for sky subtracting', type=str)
+    parser.add_argument('--throughput', help='File to use for relative throughput correction',
+                        type=str, default='throughput_dome_flat_20180727.txt')
     args = parser.parse_args()
     print(" *** PRAXIS Viewer *** \n")
     print("Arguments: {}\n".format(vars(args)))
@@ -331,8 +354,10 @@ if __name__ == '__main__':
     if args.tram:
         plot_tramlines(tramlines, main_data)
     main_data, fluxes = process_data(main_data, tramlines, args.subtract, args.divide)
-    peak_fibre = np.argmax(fluxes) + 1
-    peak_spectrum = extract_spectrum(main_data, tramlines[peak_fibre - 1])
+    if args.throughput:
+        fluxes = throughput_correction(fluxes, args.throughput)
+    peak_fibre = np.nanargmax(fluxes)
+    peak_spectrum = extract_spectrum(main_data, tramlines[peak_fibre])
     hex_array = make_hex_array(fluxes, not args.subtract)
     if np.sum(hex_array):
         plot_hexagons(hex_array, args.nolabels, filename, peak_spectrum)
