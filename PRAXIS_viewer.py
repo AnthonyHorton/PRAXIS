@@ -178,7 +178,7 @@ def plot_hexagons(hex_array, nolabels, filename, spectrum):
     ax1 = fig.add_subplot(1, 2, 1)
     ax1.set_aspect('equal')
     for i, (x, y, flux) in enumerate(hex_array):
-        if np.isnan(flux) or flux == 0:
+        if np.isnan(flux):
             colour = 'red'
         else:
             colour = str(flux)
@@ -205,7 +205,7 @@ def plot_hexagons(hex_array, nolabels, filename, spectrum):
 
     ax2 = fig.add_subplot(1, 2, 2)
     ax2.plot(spectrum)
-    ax2.set_title('Peak fibre spectrum')
+    ax2.set_title('Science fibre spectrum')
     ax2.set_xlim(0, len(spectrum - 1))
     ax2.set_ylim(0, 1.05 * spectrum.max())
 
@@ -332,7 +332,7 @@ if __name__ == '__main__':
     parser.add_argument('--divide', help='Image for flat dividing', type=str)
     parser.add_argument('--subtract', help='Image for sky subtracting', type=str)
     parser.add_argument('--throughput', help='File to use for relative throughput correction',
-                        type=str, default='throughput_dome_flat_20180727.txt')
+                        type=str, default='throughput_dome_flat_20180729.txt')
     args = parser.parse_args()
     print(" *** PRAXIS Viewer *** \n")
     print("Arguments: {}\n".format(vars(args)))
@@ -356,10 +356,8 @@ if __name__ == '__main__':
     if args.tram:
         plot_tramlines(tramlines, main_data)
     main_data, fluxes = process_data(main_data, tramlines, args.subtract, args.divide)
-    if args.throughput:
-        fluxes = throughput_correction(fluxes, args.throughput)
-    peak_fibre = np.nanargmax(fluxes)
-    peak_spectrum = extract_spectrum(main_data, tramlines[peak_fibre])
+    fluxes = throughput_correction(fluxes, args.throughput)
+    science_spectrum = sum([extract_spectrum(main_data, tramlines[i]) for i in range(7)])
     hex_array = make_hex_array(fluxes, not args.subtract)
     if np.sum(hex_array):
-        plot_hexagons(hex_array, args.nolabels, filename, peak_spectrum)
+        plot_hexagons(hex_array, args.nolabels, filename, science_spectrum)
