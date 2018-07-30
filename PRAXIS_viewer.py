@@ -136,6 +136,19 @@ def initialise_tramlines(tram_coef_file, width, background_width=None):
     return tramlines
 
 
+def mask_bad_pixels(image_data, pixel_mask):
+    try:
+        bad_pixels = np.loadtxt(pixel_mask, dtype=np.int)
+    except Exception as err:
+        warnings.warn("Couldn't read bad pixel mask from {}".format(pixel_mask))
+        raise err
+    print("Applying bad pixel mask from {}\n".format(pixel_mask))
+    bad_pixels = (bad_pixels[0], bad_pixels[1])
+    image_data = np.ma.array(image_data)
+    image_data[bad_pixels] = np.ma.masked
+    return image_data
+
+
 def extract_spectrum(image_data, tramline, tramline_bg=None):
     """
     Crude, uncalibrated spectral extraction (just masks image & collapses in y direction)
@@ -148,15 +161,19 @@ def extract_spectrum(image_data, tramline, tramline_bg=None):
     Returns:
         spectrum (np.array): 1D spectrum
     """
-    mask = np.ones_like(image_data)
-    mask[tramline] = 0.0
-    spectrum = np.ma.array(image_data, mask=mask).mean(axis=0)
+    spectrum_data = np.ma.array(image_data, copy=True)
+    tramline_mask = np.ones(spectrum_data.shape, dtype=np.bool)
+    tramline_mask[tramline] = False
+    spectrum_data[tramline_mask] = np.ma.masked
+    spectrum = spectrum_data.mean(axis=0)
 
     if tramline_bg:
-        mask_bg = np.ones_like(image_data)
-        mask_bg[tramline_bg] = 0.0
-        mask_bg[tramline] = 1.0
-        spectrum = spectrum - np.ma.array(image_data, mask=mask_bg).mean(axis=0)
+        background_data = np.ma.array(image_data, copy=True)
+        tramline_bg_mask = np.ones(background_data.shape, dtype=np.bool)
+        tramline_bg_mask[tramline_bg] = False
+        tramline_bg_mask[tramline] = True
+        background_data[tramline_bg_mask] = np.ma.masked
+        spectrum = spectrum - background_data.mean(axis=0)
 
     return spectrum.filled(fill_value=np.nan)
 
@@ -166,15 +183,19 @@ def plot_tramlines(image_data, tramlines, tramlines_bg=None):
     Displays image data with the tramline extraction regions using the viridis colour map, and
     the remainder in grey.
     """
-    mask = np.ones_like(image_data)
+    spectrum_data = np.ma.array(image_data, copy=True)
+    tramline_mask = np.ones(spectrum_data.shape, dtype=np.bool)
     for tramline in tramlines:
-        mask[tramline] = 0.0
+        tramline_mask[tramline] = False
+    spectrum_data[mask] = np.ma.masked
 
     if tramlines_bg:
-        mask_bg = np.ones_like(image_data)
+        background_data = np.ma.array(image_data, copy=True)
+        background_mask = np.ones(background_data.shape, dtype=np.bool)
         for tramline_bg in tramlines_bg:
-            mask_bg[tramline_bg] = 0.0
-        plt.imshow(np.ma.array(image_data, mask=mask_bg),
+            tramline_bg_mask[tramline_bg] = False
+        background_data[tramline_bg_mask] = np.ma.masked
+        plt.imshow(np.ma.array(background_data, mask=mask_bg),
                    cmap='gray_r',
                    norm=colours.PowerNorm(gamma=0.5),
                    origin='lower')
@@ -184,7 +205,7 @@ def plot_tramlines(image_data, tramlines, tramlines_bg=None):
                    norm=colours.PowerNorm(gamma=0.5),
                    origin='lower')
 
-    plt.imshow(np.ma.array(image_data, mask=mask),
+    plt.imshow(spectrum_data,
                cmap='viridis_r',
                norm=colours.PowerNorm(gamma=0.5),
                origin='lower')
@@ -297,6 +318,7 @@ def plot_hexagons(hex_array, filename, spectrum):
 
 def process_data(filename,
                  subtract,
+                 pixel_mask,
                  tram_coeffs,
                  width,
                  background_width,
@@ -312,7 +334,8 @@ def process_data(filename,
             part) it will attempt to autocomplete.
         subtract (str, optional): filename of a sky background image to subtract from the data. If
             not given instrument background subtraction will be used instead.
-        tram_coeffs (str, optional): filename of the spectum tramline coefficients.
+        pixel_mask (str, optional): filename of a bad pixel mask
+        tram_coeffs (str): filename of the spectum tramline coefficients.
         width (int): Width, in pixels, of the spectral extraction regions
         background_width (int): total width, in pixels, of the spectral extraction regions including
             the instrument background subtraction regions
@@ -339,6 +362,9 @@ def process_data(filename,
         warnings.warn('Could not open input file {}'.format(filename))
         raise err
     print('Read data from {}\n'.format(filename))
+
+    if pixel_mask:
+        main_data = mask_bad_pixels(main_data, pixel_mask)
 
     # Background subtraction and spectral extraction
     spectra = []
@@ -392,14 +418,19 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument('--filename', help='Input file.', type=str)
     parser.add_argument('--subtract', help='Sky subtraction file', type=str)
+    parser.add_argument('--pixelmask', help='Bad pixel mask file', type=str,
+                        default='bad_pixels_20180730.txt')
     parser.add_argument('--tramcoeffs', help='Tramline coefficients file', type=str,
                         default='traces.csv')
-    parser.add_argument('--width', help='Width for spectral extraction', type=int, default=5)
-    parser.add_argument('--bgwidth', help='Width for background extraction', type=int, default=10)
+    parser.add_argument('--width', help='Width for spectral extraction', type=int,
+                        default=5)
+    parser.add_argument('--bgwidth', help='Width for background extraction', type=int,
+                        default=10)
     parser.add_argument('--plottram', help='Plot tramlines', action='store_true')
     parser.add_argument('--throughputs', help='Fibre throughputs file', type=str,
                         default='throughput_dome_flat_20180729.txt')
-    parser.add_argument('--plothex', help='Plot IFU image', action='store_true', default=True)
+    parser.add_argument('--plothex', help='Plot IFU image', action='store_true',
+                        default=True)
     args = parser.parse_args()
 
     print(" *** PRAXIS Viewer *** \n")
@@ -407,6 +438,7 @@ if __name__ == '__main__':
 
     main_data, fluxes, science_spectrum = process_data(filename=args.filename,
                                                        subtract=args.subtract,
+                                                       pixel_mask=args.pixelmask,
                                                        tram_coeffs=args.tramcoeffs,
                                                        width=args.width,
                                                        background_width=args.bgwidth,
