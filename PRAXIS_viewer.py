@@ -15,27 +15,7 @@ radius_flat = 0.55 / 2  # radius to the flat edge
 radius = radius_flat * 2 / 3**0.5  # radius of the circle around
 radius_short = np.sin(np.pi/6) * radius  # short radius
 
-window = ((830, 1220), (700, 1523))
-
-tram_coef = ((63.8168, 0.00159368, -5.14315*10**-6),
-             (75.6552, 0.0018184, -5.28723*10**-6),
-             (87.6753, 0.00110761, -4.25759*10**-6),
-             (99.742, 0.0017248, -5.03802*10**-6),
-             (111.731, 0.00182788, -5.14512*10**-6),
-             (123.743, 0.00134928, -4.50364*10**-6),
-             (135.788, -0.000400901,  -2.13853*10**-6),
-             (np.nan, np.nan, np.nan),
-             (159.696, -0.00134634,  -5.88114*10**-7),
-             (171.742, -0.00092513, -1.22513*10**-6),
-             (183.977, -0.00178464, -1.29449*10**-6),
-             (np.nan, np.nan, np.nan),
-             (267.469, -0.00266766, 1.18696*10**-6),
-             (279.389, -0.00292473, 1.93398*10**-6),
-             (291.537, -0.00307161, 1.99748*10**-6),
-             (303.404, -0.00289977,  1.7745*10**-6),
-             (315.713, -0.00382432,  2.36483*10**-6),
-             (327.903, -0.00511395,  3.98343*10**-6),
-             (339.219, -0.00243858, 1.55742*10**-6))
+window = ((828, 1218), (700, 1523))
 
 
 def process_data(main_data, tramlines, tramlines_bg, subtract=None, throughput_file=None):
@@ -106,26 +86,24 @@ def make_hex_array(fluxes):
     hex_array = np.ones((19, 3)) * np.nan
 
     hex_array[0] = [0, 0, 0]
-
-    hex_array[1] = [-2 * radius_flat, 0, 0]
-    hex_array[2] = [-radius_flat, -(radius + radius_short), 0]
-    hex_array[3] = [radius_flat, -(radius + radius_short), 0]
-    hex_array[4] = [2 * radius_flat, 0, 0]
-    hex_array[5] = [radius_flat, radius + radius_short, 0]
-    hex_array[6] = [-radius_flat, radius + radius_short, 0]
-
-    hex_array[7] = [-3 * radius_flat, (radius + radius_short), 0]
-    hex_array[8] = [-4 * radius_flat, 0, 0]
-    hex_array[9] = [-3 * radius_flat, -(radius + radius_short), 0]
-    hex_array[10] = [-2 * radius_flat, -2 * (radius + radius_short), 0]
-    hex_array[11] = [0, -2 * (radius + radius_short), 0]
-    hex_array[12] = [2 * radius_flat, -2 * (radius + radius_short), 0]
-    hex_array[13] = [3 * radius_flat, -(radius + radius_short), 0]
-    hex_array[14] = [4 * radius_flat, 0, 0]
-    hex_array[15] = [3 * radius_flat, (radius + radius_short), 0]
-    hex_array[16] = [2 * radius_flat, 2 * (radius + radius_short), 0]
-    hex_array[17] = [0, 2 * (radius + radius_short), 0]
-    hex_array[18] = [-2 * radius_flat, 2 * (radius + radius_short), 0]
+    hex_array[1] = [-radius_flat, radius + radius_short, 0]
+    hex_array[2] = [-2 * radius_flat, 0, 0]
+    hex_array[3] = [-radius_flat, -(radius + radius_short), 0]
+    hex_array[4] = [radius_flat, -(radius + radius_short), 0]
+    hex_array[5] = [2 * radius_flat, 0, 0]
+    hex_array[6] = [radius_flat, radius + radius_short, 0]
+    hex_array[7] = [0, 2 * (radius + radius_short), 0]
+    hex_array[8] = [-2 * radius_flat, 2 * (radius + radius_short), 0]
+    hex_array[9] = [-3 * radius_flat, (radius + radius_short), 0]
+    hex_array[10] = [-4 * radius_flat, 0, 0]
+    hex_array[11] = [-3 * radius_flat, -(radius + radius_short), 0]
+    hex_array[12] = [-2 * radius_flat, -2 * (radius + radius_short), 0]
+    hex_array[13] = [0, -2 * (radius + radius_short), 0]
+    hex_array[14] = [2 * radius_flat, -2 * (radius + radius_short), 0]
+    hex_array[15] = [3 * radius_flat, -(radius + radius_short), 0]
+    hex_array[16] = [4 * radius_flat, 0, 0]
+    hex_array[17] = [3 * radius_flat, (radius + radius_short), 0]
+    hex_array[18] = [2 * radius_flat, 2 * (radius + radius_short), 0]
 
     hex_array[:, 2] = fluxes
     hex_array[:, 2] /= np.nanmax(fluxes)
@@ -133,7 +111,7 @@ def make_hex_array(fluxes):
     return hex_array
 
 
-def initialise_tramlines(width, background_width=None):
+def initialise_tramlines(width, background_width=None, tram_coef_file='traces.csv'):
     """
     Used tramline fit from tram_coef to produce a list of tuples of arrays, each tuple contains
     the y and x coordinates of the pixels to include in the extraction for a given fibreself. When
@@ -145,6 +123,12 @@ def initialise_tramlines(width, background_width=None):
     Returns:
         tramlines (list of tuples of np.array): pixels coordinates for each fibre
     """
+    try:
+        tram_coef = np.loadtxt(tram_coef_file, delimiter=',')
+    except Exception as err:
+        warnings.warn("Couldn't read tramline coefficients file {}".format(tram_coef_file))
+        raise err
+
     xs = np.arange(0, window[1][1] - window[1][0])
 
     x_grid, y_grid = np.meshgrid(xs, np.arange(width))
