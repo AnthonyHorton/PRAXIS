@@ -15,7 +15,7 @@ radius_flat = 0.55 / 2  # radius to the flat edge
 radius = radius_flat * 2 / 3**0.5  # radius of the circle around
 radius_short = np.sin(np.pi/6) * radius  # short radius
 
-window = ((828, 1218), (700, 1523))
+window = ((830, 1220), (700, 1523))
 
 tram_coef = ((63.8168, 0.00159368, -5.14315*10**-6),
              (75.6552, 0.0018184, -5.28723*10**-6),
@@ -38,7 +38,7 @@ tram_coef = ((63.8168, 0.00159368, -5.14315*10**-6),
              (339.219, -0.00243858, 1.55742*10**-6))
 
 
-def process_data(main_data, tramlines, subtract=None, divide=None):
+def process_data(main_data, tramlines, tramlines_bg, subtract=None, throughput_file=None):
     """
     Takes image data and tramline parameters and returns the flux for each of the 19 fibres
 
@@ -47,13 +47,13 @@ def process_data(main_data, tramlines, subtract=None, divide=None):
         tramlines (list of (np.array, np.array) tuples): For each fibre a tuple or arrays,
             containing the y and x coordinates of the pixels to include in the extraction.
         subtract (str, optional): filename of a sky background image to subtract from the data
-        divide (str, optional): filename of a flat field image to divide the data by. Should have
-            been bias/dark subtracted and normalised first
 
     Returns:
         main_data (np.array): processed image data
         fluxes (list of floats): Summed flux for each fibre
     """
+    spectra = []
+
     if subtract:
         subtract = check_path(subtract)
         try:
@@ -64,37 +64,40 @@ def process_data(main_data, tramlines, subtract=None, divide=None):
             raise err
         print('Subtracting {} from image\n'.format(subtract))
         main_data = main_data - sub_data
+        print('Extracting spectra\n')
+        for tramline in tramlines:
+            spectra.append(extract_spectrum(main_data, tramline))
+    elif tramlines_bg:
+        print('Extracting spectra with background subtraction\n')
+        for tramline, tramline_bg in zip(tramlines, tramlines_bg):
+            spectra.append(extract_spectrum(main_data, tramline, tramline_bg))
+    else:
+        print('Extracting spectra\n')
+        for tramline in tramlines:
+            spectra.append(extract_spectrum(main_data, tramline))
 
-    if divide:
-        divide = check_path(divide)
-        try:
-            with pf.open(divide) as hdulist:
-                div_data = hdulist[0].data[window[0][0]:window[0][1], window[1][0]:window[1][1]]
-        except Exception as err:
-            warnings.warn('Could not open divide file {}.'.format(args.divide))
-            raise err
-        print('Dividing image by {}\n'.format(divide))
-        main_data = main_data / div_data
+    science_spectrum = sum(spectra[0:7])
 
-    print('Sum flux for each fibre:\n')
-    fluxes = []
-    for i, tramline in enumerate(tramlines):
-        flux = np.sum(main_data[tramline])
+    print('Summing flux for each fibre\n')
+    fluxes = [spectrum.sum() for spectrum in spectra]
+
+    if throughput_file:
+        fluxes = throughput_correction(fluxes, throughput_file)
+
+    for i, flux in enumerate(fluxes):
         print("{}: {}".format(i + 1, flux))
-        fluxes.append(flux)
     print()
 
-    return main_data, fluxes
+    return main_data, fluxes, science_spectrum
 
 
-def make_hex_array(fluxes, subtract):
+def make_hex_array(fluxes):
     """
     Assembles an array containing the hexagonal IFU lenslet centre coordinates together with the
     corresponding normalised fluxes.
 
     Args:
         fluxes (list of floats): fluxes from each fibre
-        subtract (bool, optional): If true normalise flux values by subtracting the lowest value.
 
     Returns:
         hex_array (np.array): hex_array[idx] = [centreX, centreY, flux]
@@ -125,14 +128,12 @@ def make_hex_array(fluxes, subtract):
     hex_array[18] = [-2 * radius_flat, 2 * (radius + radius_short), 0]
 
     hex_array[:, 2] = fluxes
-    if subtract:
-        hex_array[:, 2] = hex_array[:, 2] - np.nanmin(hex_array[:, 2])
     hex_array[:, 2] /= np.nanmax(fluxes)
 
     return hex_array
 
 
-def initialise_tramlines(width):
+def initialise_tramlines(width, background_width=None):
     """
     Used tramline fit from tram_coef to produce a list of tuples of arrays, each tuple contains
     the y and x coordinates of the pixels to include in the extraction for a given fibreself. When
@@ -145,27 +146,47 @@ def initialise_tramlines(width):
         tramlines (list of tuples of np.array): pixels coordinates for each fibre
     """
     xs = np.arange(0, window[1][1] - window[1][0])
-    x_grid, y_grid = np.meshgrid(xs, np.arange(width))
 
+    x_grid, y_grid = np.meshgrid(xs, np.arange(width))
     tramlines = []
+
+    if background_width:
+        x_grid_bg, y_grid_bg = np.meshgrid(xs, np.arange(background_width))
+        tramlines_bg = []
 
     for (a, b, c) in tram_coef:
         if np.isnan(a):
             tramlines.append([])
+            if background_width:
+                tramlines_bg.append([])
             continue
         # Calculate curve
         ys = a + b * xs + c * xs**2
         # Calculate set of y shifted versions to get desired width
-        ys = ys.reshape((1, ys.shape[0]))
-        ys = ys + np.arange(-(width - 1)/2, (width + 1)/2).reshape((width, 1))
+        ys_spectrum = ys.reshape((1, ys.shape[0]))
+        ys_spectrum = ys_spectrum + np.arange(-(width - 1)/2, (width + 1)/2).reshape((width, 1))
+
         # Round to integers
-        ys = np.around(ys, decimals=0).astype(np.int)
+        ys_spectrum = np.around(ys_spectrum, decimals=0).astype(np.int)
+
         # Reshape into (y coords, x coords) for numpy indexing
-        tramline = (ys.ravel(), x_grid.ravel())
+        tramline = (ys_spectrum.ravel(), x_grid.ravel())
         tramlines.append(tramline)
+
+        if background_width:
+            ys_bg = ys.reshape((1, ys.shape[0]))
+            ys_bg = ys_bg + np.arange(-(background_width - 1)/2,
+                                      (background_width + 1)/2).reshape((background_width, 1))
+            ys_bg = np.around(ys_bg, decimals=0).astype(np.int)
+            tramline_bg = (ys_bg.ravel(), x_grid_bg.ravel())
+            tramlines_bg.append(tramline_bg)
 
     # Fibre number increases with decreasing y, but tram_coef is in order of increasing y.
     tramlines.reverse()
+
+    if background_width:
+        tramlines_bg.reverse()
+        return tramlines, tramlines_bg
 
     return tramlines
 
@@ -212,7 +233,7 @@ def plot_hexagons(hex_array, nolabels, filename, spectrum):
     plt.show()
 
 
-def plot_tramlines(tramlines, image_data):
+def plot_tramlines(tramlines, image_data, tramlines_bg=None):
     """
     Displays image data with the tramline extraction regions using the viridis colour map, and
     the remainder in grey.
@@ -221,10 +242,20 @@ def plot_tramlines(tramlines, image_data):
     for tramline in tramlines:
         mask[tramline] = 0.0
 
-    plt.imshow(image_data,
-               cmap='gray_r',
-               norm=colours.PowerNorm(gamma=0.5),
-               origin='lower')
+    if tramlines_bg:
+        mask_bg = np.ones_like(image_data)
+        for tramline_bg in tramlines_bg:
+            mask_bg[tramline_bg] = 0.0
+        plt.imshow(np.ma.array(image_data, mask=mask_bg),
+                   cmap='gray_r',
+                   norm=colours.PowerNorm(gamma=0.5),
+                   origin='lower')
+    else:
+        plt.imshow(image_data,
+                   cmap='gray_r',
+                   norm=colours.PowerNorm(gamma=0.5),
+                   origin='lower')
+
     plt.imshow(np.ma.array(image_data, mask=mask),
                cmap='viridis_r',
                norm=colours.PowerNorm(gamma=0.5),
@@ -233,7 +264,7 @@ def plot_tramlines(tramlines, image_data):
     plt.show()
 
 
-def extract_spectrum(image_data, tramline):
+def extract_spectrum(image_data, tramline, tramline_bg=None):
     """
     Crude, uncalibrated spectral extraction (just masks image & collapses in y direction)
 
@@ -246,8 +277,15 @@ def extract_spectrum(image_data, tramline):
     """
     mask = np.ones_like(image_data)
     mask[tramline] = 0.0
-    masked_image = np.ma.array(image_data, mask=mask)
-    return masked_image.sum(axis=0)
+    spectrum = np.ma.array(image_data, mask=mask).mean(axis=0)
+
+    if tramline_bg:
+        mask_bg = np.ones_like(image_data)
+        mask_bg[tramline_bg] = 0.0
+        mask_bg[tramline] = 1.0
+        spectrum = spectrum - np.ma.array(image_data, mask=mask_bg).mean(axis=0)
+
+    return spectrum
 
 
 def find_latest():
@@ -327,9 +365,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument('--filename', help='Input file.', type=str)
     parser.add_argument('--width', help='Width for extraction', type=int, default=5)
+    parser.add_argument('--bgwidth', help='Width background extraction', type=int, default=10)
     parser.add_argument('--tram', help='Plot of tramlines', action='store_true')
     parser.add_argument('--nolabels', help="Don't show fibre labels on plot", action='store_true')
-    parser.add_argument('--divide', help='Image for flat dividing', type=str)
     parser.add_argument('--subtract', help='Image for sky subtracting', type=str)
     parser.add_argument('--throughput', help='File to use for relative throughput correction',
                         type=str, default='throughput_dome_flat_20180729.txt')
@@ -352,12 +390,19 @@ if __name__ == '__main__':
         raise err
     print('Read data from {}\n'.format(filename))
 
-    tramlines = initialise_tramlines(args.width)
+    if args.bgwidth:
+        tramlines, tramlines_bg = initialise_tramlines(args.width, args.bgwidth)
+    else:
+        tramlines = initialise_tramlines(args.width)
+        tramlines_bg = None
+
     if args.tram:
-        plot_tramlines(tramlines, main_data)
-    main_data, fluxes = process_data(main_data, tramlines, args.subtract, args.divide)
-    fluxes = throughput_correction(fluxes, args.throughput)
-    science_spectrum = sum([extract_spectrum(main_data, tramlines[i]) for i in range(7)])
-    hex_array = make_hex_array(fluxes, not args.subtract)
+        plot_tramlines(tramlines, main_data, tramlines_bg)
+    main_data, fluxes, science_spectrum = process_data(main_data,
+                                                       tramlines=tramlines,
+                                                       tramlines_bg=tramlines_bg,
+                                                       subtract=args.subtract,
+                                                       throughput_file=args.throughput)
+    hex_array = make_hex_array(fluxes)
     if np.sum(hex_array):
         plot_hexagons(hex_array, args.nolabels, filename, science_spectrum)
