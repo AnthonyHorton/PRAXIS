@@ -327,8 +327,15 @@ def plot_hexagons(hex_array, filenames, spectrum):
     ax1.set_ylim(-1.5, 1.5)
     ax1.grid(True)
     ax1.set_axisbelow(True)
-    title = "{}\n IFU reconstruction (North up, East left)".format(
-        str(filenames))
+    names = []
+    for filename in filenames:
+        try:
+            filename = filename.split('/')[-3]
+        except IndexError:
+            pass
+        names.append(filename)
+
+    title = "{}\n IFU reconstruction (North up, East left)".format(names)
     ax1.set_title(title)
     ax1.set_xlabel('Arcsecs')
     ax1.set_ylabel('Arcsecs')

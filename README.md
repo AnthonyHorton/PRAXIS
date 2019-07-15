@@ -1,7 +1,7 @@
 # PRAXIS Viewer
 
 This programme is a quick look viewer for PRAXIS data. If produces a reconstructed IFU image to help
-with target acquistion.
+with target acquistion and does a simple extraction of a spectrum from the science fibres.
 
 ## Requirements
 
@@ -56,7 +56,7 @@ If cosmic rays are effecting the extracted science spectrum then sigma clipping 
 combining the spectra from the 7 science fibres.
 
 ```
-./PRAXIS_viewer.py --filenames 20180727121602 --subtract 20180727103250 --sigmaclip 2.5
+./PRAXIS_viewer.py --filenames 20190715180858 20190715183401 --subtract 20190715181736 20190715182527 --sigmaclip 2.5
 ```
 
 To list other options:
