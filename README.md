@@ -28,17 +28,14 @@ To run the PRAXIS viewer on the most recent image:
 ```
 ./PRAXIS_viewer.py
 ```
-A window will appear with the reconstructed IFU image and the spectrum from the brightest fibre. To
-continue close the window. When run without sky subtraction the IFU image is normalised by
-subtracting the flux value from the faintest fibre and dividing by the brightest. **Note, automatic location of the latest image requires the `$PRAXIS` environment variable to have been set.**
+A window will appear with the reconstructed IFU image and the combined spectrum from the 7 science fibres. To continue close the window. The IFU image is normalised by the flux in the brightest fibre. **Note, automatic location of the latest image requires the `$PRAXIS` environment variable to have been set.**
 
 To run on the most recent image with sky subtraction:
 ```
 ./PRAXIS_viewer.py --subtract 20180727103250
 ```
 This will subtract the image taken at a datetime of `20180727103250` from the more recent image
-before doing the IFU image reconstruction. When run with sky subtraction the IFU image is normalised
-by dividing by the brightest fibre, no zero point correction is done.
+before doing the IFU image reconstruction.
 
 If `$PRAXIS` is not set, or if you want to use a sky image that is not in the PRAXIS raw data
 directory then the full path must be given:
@@ -48,8 +45,10 @@ directory then the full path must be given:
 
 To run on an earlier image specify its datetime:
 ```
-./PRAXIS_viewer.py --filename 20180727121602 --subtract 20180727103250
+./PRAXIS_viewer.py --filenames 20180727121602 --subtract 20180727103250
 ```
+
+Multiple filenames will be given. If three are more are given the data from each will be median combined before processing, while is only two are given the mean is used.
 
 To list other options:
 ```

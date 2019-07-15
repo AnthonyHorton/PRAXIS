@@ -8,10 +8,10 @@ if __name__ == '__main__':
     # arg parsing for command line version
     description = 'PRAXIS Viewer. Visualisation tool for PRAXIS data sets.'
     parser = argparse.ArgumentParser(description=description)
-    parser.add_argument('--filename', help='Input file.', type=str)
-    parser.add_argument('--subtract', help='Sky subtraction file', type=str)
+    parser.add_argument('--filenames', help='Input file(s).', nargs='*', type=str)
+    parser.add_argument('--subtract', help='Sky subtraction file(s)', nargs='*', type=str)
     parser.add_argument('--pixelmask', help='Bad pixel mask file', type=str,
-                        default='calibration_data/bad_pixels/bad_pixels_20190715.txt')
+                        default='calibration_data/bad_pixels/bad_pixels_20190715a.txt')
     parser.add_argument('--tramcoeffs', help='Tramline coefficients file', type=str,
                         default='calibration_data/traces/traces_20190715.csv')
     parser.add_argument('--width', help='Width for spectral extraction', type=int,
@@ -28,7 +28,7 @@ if __name__ == '__main__':
     print(" *** PRAXIS Viewer *** \n")
     print("Arguments: {}\n".format(vars(args)))
 
-    main_data, fluxes, science_spectrum = process_data(filename=args.filename,
+    main_data, fluxes, science_spectrum = process_data(filenames=args.filenames,
                                                        subtract=args.subtract,
                                                        pixel_mask=args.pixelmask,
                                                        tram_coeffs=args.tramcoeffs,

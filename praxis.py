@@ -318,7 +318,7 @@ def plot_hexagons(hex_array, filename, spectrum):
     plt.show()
 
 
-def process_data(filename,
+def process_data(filenames,
                  subtract,
                  pixel_mask,
                  tram_coeffs,
@@ -331,8 +331,8 @@ def process_data(filename,
     Takes image data and tramline parameters and returns the flux for each of the 19 fibres
 
     Args:
-        filename (str, optional) : the name of the input file. If not given will try to find the
-            latest PRAXIS file and process that. If given a partial path (e.g. just the datetime
+        filename (list, optional) : the name(s) of the input file(s). If not given will try to find
+            the latest PRAXIS file and process that. If given a partial path (e.g. just the datetime
             part) it will attempt to autocomplete.
         subtract (str, optional): filename of a sky background image to subtract from the data. If
             not given instrument background subtraction will be used instead.
@@ -351,19 +351,31 @@ def process_data(filename,
         science_spectrum (np.array): Summed spectrum from the 7 science fibres
     """
     # Find and open main data file
-    if filename is None:
+    if not filenames:
         print("Looking for latest image file...")
-        filename = find_latest()
-        print("Found {}\n".format(filename))
+        filenames = [find_latest(),]
+        print("Found {}\n".format(filenames[0]))
     else:
-        filename = check_path(filename)
-    try:
-        with pf.open(filename) as hdulist:
-            main_data = hdulist[0].data[window[0][0]:window[0][1], window[1][0]:window[1][1]]
-    except Exception as err:
-        warnings.warn('Could not open input file {}'.format(filename))
-        raise err
-    print('Read data from {}\n'.format(filename))
+        filenames = [check_path(filename) for filename in filenames]
+
+    n_files = len(filenames)
+    data = []
+    for filename in filenames:
+        try:
+            with pf.open(filenames[0]) as hdulist:
+                data.append(hdulist[0].data[window[0][0]:window[0][1], window[1][0]:window[1][1]])
+        except Exception as err:
+            warnings.warn('Could not open input file {}'.format(filename))
+            raise err
+        print('Read data from {}\n'.format(filenames[0]))
+
+    if n_files == 1:
+        main_data = data[0]
+    elif n_files > 2:
+        main_data = np.median(np.array(data), axis=0)
+    else:
+        # 2 files
+        main_data = np.mean(np.array(data), axis=0)
 
     if pixel_mask:
         main_data = mask_bad_pixels(main_data, pixel_mask)
