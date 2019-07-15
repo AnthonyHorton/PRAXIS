@@ -34,7 +34,7 @@ To run on the most recent image with sky subtraction:
 ```
 ./PRAXIS_viewer.py --subtract 20180727103250
 ```
-This will subtract the image taken at a datetime of `20180727103250` from the more recent image
+This will subtract the image taken at a datetime of `20180727103250` from the most recent image
 before doing the IFU image reconstruction.
 
 If `$PRAXIS` is not set, or if you want to use a sky image that is not in the PRAXIS raw data
@@ -48,7 +48,7 @@ To run on an earlier image specify its datetime:
 ./PRAXIS_viewer.py --filenames 20180727121602 --subtract 20180727103250
 ```
 
-Multiple filenames will be given. If three are more are given the data from each will be median combined before processing, while is only two are given the mean is used.
+Multiple filenames can be given. If three are more are given the data from each will be median combined before processing, while if only two are given the mean is used.
 
 To list other options:
 ```
