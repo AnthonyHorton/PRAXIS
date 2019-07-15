@@ -6,6 +6,7 @@ import glob
 import numpy as np
 import astropy.io.fits as pf
 from astropy import stats
+from astropy.visualization import ImageNormalize, PercentileInterval, LinearStretch
 import matplotlib.pyplot as plt
 import matplotlib.colors as colours
 from matplotlib.patches import RegularPolygon
@@ -70,19 +71,18 @@ def load_and_combine(filenames):
     data = []
     for filename in filenames:
         try:
-            with pf.open(filenames[0]) as hdulist:
+            with pf.open(filename) as hdulist:
                 data.append(hdulist[0].data[window[0][0]:window[0][1], window[1][0]:window[1][1]])
         except Exception as err:
             warnings.warn('Could not open input file {}'.format(filename))
             raise err
-        print('Read data from {}\n'.format(filenames[0]))
+        print('Read data from {}\n'.format(filename))
 
     if n_files == 1:
         combined_data = data[0]
     elif n_files > 2:
         combined_data = np.median(np.array(data), axis=0)
     else:
-        # 2 files
         combined_data = np.mean(np.array(data), axis=0)
 
     return combined_data
@@ -204,6 +204,10 @@ def plot_tramlines(image_data, tramlines, tramlines_bg=None):
     Displays image data with the tramline extraction regions using the viridis colour map, and
     the remainder in grey.
     """
+    norm = ImageNormalize(image_data,
+                          interval=PercentileInterval(99.5),
+                          stretch=LinearStretch(),
+                          clip=False)
     spectrum_data = np.ma.array(image_data, copy=True)
     tramline_mask = np.ones(spectrum_data.shape, dtype=np.bool)
     for tramline in tramlines:
@@ -222,17 +226,17 @@ def plot_tramlines(image_data, tramlines, tramlines_bg=None):
         background_data[background_mask] = np.ma.masked
         ax1.imshow(background_data,
                    cmap='gray_r',
-                   norm=colours.PowerNorm(gamma=0.5),
+                   norm=norm,
                    origin='lower')
     else:
         ax1.imshow(image_data,
                    cmap='gray_r',
-                   norm=colours.PowerNorm(gamma=0.5),
+                   norm=norm,
                    origin='lower')
 
     spectrum_image = ax1.imshow(spectrum_data,
                                 cmap='viridis_r',
-                                norm=colours.PowerNorm(gamma=0.5),
+                                norm=norm,
                                 origin='lower')
     fig.colorbar(spectrum_image)
     plt.show()
