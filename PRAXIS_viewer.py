@@ -419,16 +419,16 @@ if __name__ == '__main__':
     parser.add_argument('--filename', help='Input file.', type=str)
     parser.add_argument('--subtract', help='Sky subtraction file', type=str)
     parser.add_argument('--pixelmask', help='Bad pixel mask file', type=str,
-                        default='bad_pixels_20180730.txt')
+                        default='bad_pixels_20190715.txt')
     parser.add_argument('--tramcoeffs', help='Tramline coefficients file', type=str,
-                        default='traces.csv')
+                        default='traces_20190715.csv')
     parser.add_argument('--width', help='Width for spectral extraction', type=int,
                         default=5)
     parser.add_argument('--bgwidth', help='Width for background extraction', type=int,
                         default=10)
     parser.add_argument('--plottram', help='Plot tramlines', action='store_true')
     parser.add_argument('--throughputs', help='Fibre throughputs file', type=str,
-                        default='throughput_dome_flat_20180729.txt')
+                        default='throughput_dome_flat_20190715.txt')
     parser.add_argument('--plothex', help='Plot IFU image', action='store_true',
                         default=True)
     args = parser.parse_args()
