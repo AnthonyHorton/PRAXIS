@@ -20,7 +20,7 @@ to the path of the directory that contains the PRAXIS exposures, e.g.
 ```
 export PRAXIS=/run/user/1234/gvfs/smb-share:server=127.0.0.1,share=hxrg/H2RG-C001-ASIC-SC2-B-010-JWST/FSRamp
 ```
-Add this to your `~.bashrc` file to automatically set `$PRAXIS` in every new shell.
+Add this to your `~.bashrc`/`.zshrc` file to automatically set `$PRAXIS` in every new shell.
 
 ## Usage
 
@@ -37,6 +37,8 @@ To run on the most recent image with sky subtraction:
 This will subtract the image taken at a datetime of `20180727103250` from the most recent image
 before doing the IFU image reconstruction.
 
+Multiple datetimes/filenames can be given. If three are more are given the data from each will be median combined before processing, while if only two are given the mean is used.
+
 If `$PRAXIS` is not set, or if you want to use a sky image that is not in the PRAXIS raw data
 directory then the full path must be given:
 ```
@@ -48,7 +50,7 @@ To run on an earlier image specify its datetime:
 ./PRAXIS_viewer.py --filenames 20180727121602 --subtract 20180727103250
 ```
 
-Multiple filenames can be given. If three are more are given the data from each will be median combined before processing, while if only two are given the mean is used.
+Multiple datetimes/filenames can be given. If three are more are given the data from each will be median combined before processing, while if only two are given the mean is used.
 
 To list other options:
 ```

@@ -63,6 +63,28 @@ def check_path(filename):
             filename = prefixed_filename
     return filename
 
+def load_and_combine(filenames):
+    filenames = [check_path(filename) for filename in filenames]
+    n_files = len(filenames)
+    data = []
+    for filename in filenames:
+        try:
+            with pf.open(filenames[0]) as hdulist:
+                data.append(hdulist[0].data[window[0][0]:window[0][1], window[1][0]:window[1][1]])
+        except Exception as err:
+            warnings.warn('Could not open input file {}'.format(filename))
+            raise err
+        print('Read data from {}\n'.format(filenames[0]))
+
+    if n_files == 1:
+        combined_data = data[0]
+    elif n_files > 2:
+        combined_data = np.median(np.array(data), axis=0)
+    else:
+        # 2 files
+        combined_data = np.mean(np.array(data), axis=0)
+
+    return combined_data
 
 def initialise_tramlines(tram_coef_file, width, background_width=None):
     """
@@ -278,7 +300,7 @@ def make_hex_array(fluxes):
     return hex_array
 
 
-def plot_hexagons(hex_array, filename, spectrum):
+def plot_hexagons(hex_array, filenames, spectrum):
     """
     Plots the reconstructed IFU image and spectrum from the brightest fibre.
     """
@@ -304,7 +326,8 @@ def plot_hexagons(hex_array, filename, spectrum):
     ax1.set_ylim(-1.5, 1.5)
     ax1.grid(True)
     ax1.set_axisbelow(True)
-    title = "{} IFU reconstruction (North up, East left)".format(filename.split('/')[-3])
+    title = "{}\n IFU reconstruction (North up, East left)".format(
+        str(filenames))
     ax1.set_title(title)
     ax1.set_xlabel('Arcsecs')
     ax1.set_ylabel('Arcsecs')
@@ -334,7 +357,7 @@ def process_data(filenames,
         filename (list, optional) : the name(s) of the input file(s). If not given will try to find
             the latest PRAXIS file and process that. If given a partial path (e.g. just the datetime
             part) it will attempt to autocomplete.
-        subtract (str, optional): filename of a sky background image to subtract from the data. If
+        subtract (list, optional): filename of a sky background image to subtract from the data. If
             not given instrument background subtraction will be used instead.
         pixel_mask (str, optional): filename of a bad pixel mask
         tram_coeffs (str): filename of the spectum tramline coefficients.
@@ -355,27 +378,8 @@ def process_data(filenames,
         print("Looking for latest image file...")
         filenames = [find_latest(),]
         print("Found {}\n".format(filenames[0]))
-    else:
-        filenames = [check_path(filename) for filename in filenames]
 
-    n_files = len(filenames)
-    data = []
-    for filename in filenames:
-        try:
-            with pf.open(filenames[0]) as hdulist:
-                data.append(hdulist[0].data[window[0][0]:window[0][1], window[1][0]:window[1][1]])
-        except Exception as err:
-            warnings.warn('Could not open input file {}'.format(filename))
-            raise err
-        print('Read data from {}\n'.format(filenames[0]))
-
-    if n_files == 1:
-        main_data = data[0]
-    elif n_files > 2:
-        main_data = np.median(np.array(data), axis=0)
-    else:
-        # 2 files
-        main_data = np.mean(np.array(data), axis=0)
+    main_data = load_and_combine(filenames)
 
     if pixel_mask:
         main_data = mask_bad_pixels(main_data, pixel_mask)
@@ -383,23 +387,18 @@ def process_data(filenames,
     # Background subtraction and spectral extraction
     spectra = []
     if not subtract:
-        tramlines, tramlines_bg = initialise_tramlines(tram_coeffs, width, background_width)
         print('Extracting spectra with background subtraction\n')
+        tramlines, tramlines_bg = initialise_tramlines(tram_coeffs, width, background_width)
         for tramline, tramline_bg in zip(tramlines, tramlines_bg):
             spectra.append(extract_spectrum(main_data, tramline, tramline_bg))
     else:
+        print('Subtracting {} from image\n'.format(subtract))
+        sub_data = load_and_combine(subtract)
+        main_data = main_data - sub_data
+
+        print('Extracting spectra\n')
         tramlines = initialise_tramlines(tram_coeffs, width)
         tramlines_bg = None
-        subtract = check_path(subtract)
-        try:
-            with pf.open(subtract) as hdulist:
-                sub_data = hdulist[0].data[window[0][0]:window[0][1], window[1][0]:window[1][1]]
-        except Exception as err:
-            warnings.warn('Could not read subtract file {}.'.format(args.subtract))
-            raise err
-        print('Subtracting {} from image\n'.format(subtract))
-        main_data = main_data - sub_data
-        print('Extracting spectra\n')
         for tramline in tramlines:
             spectra.append(extract_spectrum(main_data, tramline))
 
@@ -421,6 +420,6 @@ def process_data(filenames,
     if plot_hex:
         hex_array = make_hex_array(fluxes)
         if np.sum(hex_array):
-            plot_hexagons(hex_array, filename, science_spectrum)
+            plot_hexagons(hex_array, filenames, science_spectrum)
 
     return main_data, fluxes, science_spectrum
