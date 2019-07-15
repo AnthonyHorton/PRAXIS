@@ -52,6 +52,13 @@ To run on an earlier image specify its datetime:
 
 Multiple datetimes/filenames can be given. If three are more are given the data from each will be median combined before processing, while if only two are given the mean is used.
 
+If cosmic rays are effecting the extracted science spectrum then sigma clipping can be used when
+combining the spectra from the 7 science fibres.
+
+```
+./PRAXIS_viewer.py --filenames 20180727121602 --subtract 20180727103250 --sigmaclip 2.5
+```
+
 To list other options:
 ```
 ./PRAXIS_viewer.py --help

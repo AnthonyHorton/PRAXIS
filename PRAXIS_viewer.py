@@ -23,6 +23,8 @@ if __name__ == '__main__':
                         default='calibration_data/throughputs/throughput_dome_flat_20190715.txt')
     parser.add_argument('--plothex', help='Plot IFU image', action='store_true',
                         default=True)
+    parser.add_argument('--sigmaclip', help='Threshold for sigma clipping of science spectra.',
+                        type=float)
     args = parser.parse_args()
 
     print(" *** PRAXIS Viewer *** \n")
@@ -36,4 +38,5 @@ if __name__ == '__main__':
                                                        background_width=args.bgwidth,
                                                        plot_tram=args.plottram,
                                                        throughput_file=args.throughputs,
-                                                       plot_hex=args.plothex)
+                                                       plot_hex=args.plothex,
+                                                       sigma_clip=args.sigmaclip)

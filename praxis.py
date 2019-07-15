@@ -5,6 +5,7 @@ import glob
 
 import numpy as np
 import astropy.io.fits as pf
+from astropy import stats
 import matplotlib.pyplot as plt
 import matplotlib.colors as colours
 from matplotlib.patches import RegularPolygon
@@ -349,7 +350,8 @@ def process_data(filenames,
                  background_width,
                  plot_tram,
                  throughput_file,
-                 plot_hex):
+                 plot_hex,
+                 sigma_clip):
     """
     Takes image data and tramline parameters and returns the flux for each of the 19 fibres
 
@@ -405,7 +407,11 @@ def process_data(filenames,
     if plot_tram:
         plot_tramlines(main_data, tramlines, tramlines_bg)
 
-    science_spectrum = np.nanmean(np.array(spectra[0:7]), axis=0)
+    science_spectra = np.ma.array(spectra[0:7])
+    # Sigma clip science spectra before combining to reduce cosmic rays.
+    if sigma_clip:
+        science_spectra = stats.sigma_clip(science_spectra, sigma=sigma_clip, axis=0)
+    science_spectrum = np.nanmean(science_spectra, axis=0)
     with warnings.catch_warnings():
         warnings.filterwarnings('ignore', message='Mean of empty slice')
         fluxes = [np.nanmean(spectrum) for spectrum in spectra]
