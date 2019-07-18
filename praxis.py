@@ -352,6 +352,16 @@ def plot_hexagons(hex_array, filenames, spectrum):
 
     plt.show()
 
+def standardise(spectrum, standard_file):
+    try:
+        standard_spectrum = np.loadtxt(standard_file)
+    except Exception as err:
+        warnings.warn("Error opening standard file {}".format(standard_file))
+        raise err
+    print("Correcting science spectrum with standard star spectrum from {}\n".format(standard_file))
+    spectrum = spectrum / standard_spectrum
+    return spectrum
+
 
 def process_data(filenames,
                  subtract,
@@ -362,7 +372,8 @@ def process_data(filenames,
                  plot_tram,
                  throughput_file,
                  plot_hex,
-                 sigma_clip):
+                 sigma_clip,
+                 standard=None):
     """
     Takes image data and tramline parameters and returns the flux for each of the 19 fibres
 
@@ -423,6 +434,8 @@ def process_data(filenames,
     if sigma_clip:
         science_spectra = stats.sigma_clip(science_spectra, sigma=sigma_clip, axis=0)
     science_spectrum = np.nanmean(science_spectra, axis=0)
+    if standard:
+        science_spectrum = standardise(science_spectrum, standard)
     with warnings.catch_warnings():
         warnings.filterwarnings('ignore', message='Mean of empty slice')
         fluxes = [np.nanmean(spectrum) for spectrum in spectra]
