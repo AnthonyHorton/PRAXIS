@@ -59,6 +59,17 @@ combining the spectra from the 7 science fibres.
 ./PRAXIS_viewer.py --filenames 20190715180858 20190715183401 --subtract 20190715181736 20190715182527 --sigmaclip 2.5
 ```
 
+Optionally the science spectrum can be divided by a standard start spectrum by passing the
+`--standard` option.
+```
+./PRAXIS_viewer.py --filenames 20190715180858 20190715183401 --subtract 20190715181736 20190715182527 --standard
+```
+
+This will use the default standard start spectrum file. It is possible to specify a particular file to use with the `--standardfile` option.
+```
+./PRAXIS_viewer.py --filenames 20190715180858 20190715183401 --subtract 20190715181736 20190715182527 --standard --standardfile calibration_data/standards/suppressed_20190718_HIP87881.txt
+```
+
 To list other options:
 ```
 ./PRAXIS_viewer.py --help

@@ -25,7 +25,9 @@ if __name__ == '__main__':
                         default=True)
     parser.add_argument('--sigmaclip', help='Threshold for sigma clipping of science spectra.',
                         type=float)
-    parser.add_argument('--standard', help='Standard star spectrum to correct science spectrum',
+    parser.add_argument('--standard', help='Divide science spectrum buy standard spectrum',
+                        action='store_true', default=False)
+    parser.add_argument('--standardfile', help='Standard star spectrum to correct science spectrum',
                         type=str,
                         default='calibration_data/standards/suppressed_20190718_HIP87881.txt')
     args = parser.parse_args()
@@ -43,4 +45,5 @@ if __name__ == '__main__':
                                                        throughput_file=args.throughputs,
                                                        plot_hex=args.plothex,
                                                        sigma_clip=args.sigmaclip,
-                                                       standard=args.standard)
+                                                       standard=args.standard,
+                                                       standard_file=args.standardfile)

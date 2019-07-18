@@ -373,7 +373,8 @@ def process_data(filenames,
                  throughput_file,
                  plot_hex,
                  sigma_clip,
-                 standard=None):
+                 standard,
+                 standard_file):
     """
     Takes image data and tramline parameters and returns the flux for each of the 19 fibres
 
@@ -435,7 +436,7 @@ def process_data(filenames,
         science_spectra = stats.sigma_clip(science_spectra, sigma=sigma_clip, axis=0)
     science_spectrum = np.nanmean(science_spectra, axis=0)
     if standard:
-        science_spectrum = standardise(science_spectrum, standard)
+        science_spectrum = standardise(science_spectrum, standard_file)
     with warnings.catch_warnings():
         warnings.filterwarnings('ignore', message='Mean of empty slice')
         fluxes = [np.nanmean(spectrum) for spectrum in spectra]
